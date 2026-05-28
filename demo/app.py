@@ -95,6 +95,60 @@ RUNS: dict[str, dict] = {}   # run_id  → 跑批状态与结果
 _GEMINI_LOCAL = threading.local()
 
 
+def _rehydrate_job_from_disk(job_id: str) -> dict | None:
+    """多 worker / 进程重启后，从 uploads 目录恢复 Job（内存 JOBS 不共享）。"""
+    matches = sorted(
+        UPLOAD_DIR.glob(f"{job_id}_*"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not matches:
+        return None
+    path = matches[0]
+    try:
+        columns, data_rows = inspect_file(path)
+        file_data = read_rows(path)
+        col_stats = compute_column_stats(file_data["columns"], file_data["rows"])
+    except Exception:
+        return None
+    ext = path.suffix.lower()
+    file_kind = "xlsx" if ext == ".xlsx" else "csv"
+    display_name = path.name[len(job_id) + 1 :] if path.name.startswith(f"{job_id}_") else path.name
+    job: dict[str, Any] = {
+        "job_id": job_id,
+        "filename": display_name,
+        "saved_name": path.name,
+        "columns": columns,
+        "data_rows": data_rows,
+        "column_stats": col_stats,
+        "path": str(path),
+        "file_kind": file_kind,
+        "embedded_image_columns": [],
+    }
+    if file_kind == "xlsx":
+        try:
+            job["embedded_image_columns"] = detect_embedded_image_columns(path, columns)
+        except Exception:
+            pass
+    prepared = PREPARED_DIR / f"{path.stem}_prepared.csv"
+    if prepared.is_file():
+        job["prepared_path"] = str(prepared)
+        job["status"] = "ready"
+    return job
+
+
+def _get_job(job_id: str | None) -> dict | None:
+    if not job_id:
+        return None
+    job = JOBS.get(job_id)
+    if job:
+        return job
+    job = _rehydrate_job_from_disk(job_id)
+    if job:
+        JOBS[job_id] = job
+    return job
+
+
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2119,7 +2173,10 @@ def _apply_field_mapping_to_job(job: dict, body: dict) -> dict:
 def _batch_worker(run_id: str) -> None:
     run = RUNS[run_id]
     try:
-        job = JOBS[run["job_id"]]
+        job = _get_job(run.get("job_id"))
+        if not job:
+            _mark_run_finished(run, "error", "任务已失效，请重新上传并准备数据")
+            return
         cfg = run["config"]
         file_data = read_rows(_resolve_data_path(job))
         columns = file_data["columns"]
@@ -2261,9 +2318,9 @@ def load_sample():
 def clarify():
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传或加载样本"}), 400
-    job = JOBS[job_id]
     sensitive_status = (body.get("sensitive_status") or "").strip()
     if sensitive_status == "unmasked":
         return jsonify({"error": "当前数据标记为未脱敏，不能进入第 2 步 LLM 理解需求。请先脱敏或改用测试样本。"}), 400
@@ -2492,9 +2549,9 @@ def clarify_followup():
     """用户填写补充说明后，再次调用大模型更新理解与 Prompt。"""
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传并完成首次澄清"}), 400
-    job = JOBS[job_id]
     user_answers = body.get("user_answers") or {}
     prompt_revision_instruction = (body.get("prompt_revision_instruction") or "").strip()
     has_answer = any(str(v).strip() for v in user_answers.values())
@@ -2625,9 +2682,9 @@ def clarify_followup():
 def confirm():
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "无效 job_id"}), 400
-    job = JOBS[job_id]
     columns = job.get("columns") or []
     fm_in = body.get("field_mapping") or (job.get("clarified") or {}).get("field_mapping", {})
     field_mapping, more_warnings = validate_field_mapping(columns, fm_in)
@@ -2716,9 +2773,9 @@ def confirm():
 def prepare():
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "无效 job_id"}), 400
-    job = JOBS[job_id]
     if job.get("status") != "confirmed" and not job.get("field_mapping"):
         return jsonify({"error": "请先确认字段映射（/api/confirm）"}), 400
     fm = job.get("field_mapping") or {}
@@ -2815,8 +2872,8 @@ def prompt_engineering_preview():
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
     fm_raw = body.get("field_mapping") or {}
-    if job_id and job_id in JOBS:
-        job = JOBS[job_id]
+    job = _get_job(job_id) if job_id else None
+    if job:
         cols = job.get("columns") or []
         if cols and fm_raw:
             fm, _ = validate_field_mapping(cols, fm_raw)
@@ -2834,9 +2891,9 @@ def validate_prompt():
     """第 2→3 步前：试渲染 Prompt；可选试跑 3 行检查输出能否与人工标注比对。"""
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "无效 job_id"}), 400
-    job = JOBS[job_id]
     if not job.get("prepared_path"):
         return jsonify({"error": "请先点击「确认并准备数据」"}), 400
 
@@ -2954,9 +3011,9 @@ def run_sample():
     """单元测试：默认 5 行，可多模型对比。"""
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传并准备数据"}), 400
-    job = JOBS[job_id]
     if not job.get("prepared_path"):
         return jsonify({"error": "请先调用 /api/prepare 备份并生成规范数据"}), 400
     _apply_field_mapping_to_job(job, body)
@@ -3073,9 +3130,9 @@ def upload():
 def upload_rubric():
     """上传评分标准文本（.txt / .md），表内无规则列时使用。"""
     job_id = request.form.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传数据文件"}), 400
-    job = JOBS[job_id]
     if "file" not in request.files or not request.files["file"]:
         return jsonify({"error": "请选择 .txt 或 .md 文件"}), 400
     f = request.files["file"]
@@ -3113,9 +3170,9 @@ def delete_rubric():
     """删除当前任务已上传的评分标准。"""
     body = request.get_json(silent=True) or {}
     job_id = body.get("job_id") or request.form.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传数据文件"}), 400
-    job = JOBS[job_id]
     job.pop("rubric_text", None)
     job.pop("rubric_filename", None)
     return jsonify({"ok": True, "job_id": job_id})
@@ -3126,10 +3183,10 @@ def start_run():
     body = request.get_json(silent=True) or {}
 
     job_id = body.get("job_id")
-    if not job_id or job_id not in JOBS:
+    job = _get_job(job_id)
+    if not job:
         return jsonify({"error": "请先上传文件"}), 400
 
-    job = JOBS[job_id]
     task_desc = (body.get("task_description") or job.get("task_description") or "").strip()
     if not task_desc:
         return jsonify({"error": "请填写任务说明（描述你想用 AI 做什么）"}), 400

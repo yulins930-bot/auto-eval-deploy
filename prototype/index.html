@@ -1922,6 +1922,7 @@ function clearRunPlan() {
 }
 
 async function confirmAndExecuteRun() {
+  if (window.__runInFlight) return;
   const plan = window.__pendingRunPlan;
   if (!plan) { alert('请先选择实验规模（小样本 / 抽样 / 全量）'); return; }
   const last = window.__lastResultPayload || {};
@@ -1944,7 +1945,9 @@ async function confirmAndExecuteRun() {
 }
 
 async function startRun(percent) {
+  if (window.__runInFlight) return;
   if (!window.__job || !window.__job.job_id) { alert('请先上传数据文件'); return; }
+  if (!window.__job.prepared_path) { alert('请先在第 2 步点击「确认方案，准备试跑」'); return; }
   const payload = buildRunPayload({ sample_percent: percent });
   if (!payload) { alert('请至少选一个模型'); return; }
   if (!payload.task_description.trim()) { alert('请填写数据集说明'); return; }
@@ -1974,7 +1977,9 @@ function startRunCustom() {
 }
 
 async function runQuickUnit(rows) {
+  if (window.__runInFlight) return;
   if (!window.__job || !window.__job.job_id) { alert('请先完成数据准备'); return; }
+  if (!window.__job.prepared_path) { alert('请先在第 2 步点击「确认方案，准备试跑」'); return; }
   const payload = buildRunPayload({ rows: rows });
   if (!payload) { alert('请至少选一个模型'); return; }
   setRunningUi(true);
@@ -2077,6 +2082,7 @@ function getMaxRows() { return null; }
 
 /* ───── 评测：启动 → 轮询 → 拿结果 ───── */
 function setRunningUi(running) {
+  window.__runInFlight = !!running;
   document.querySelectorAll('.run-action-btn').forEach(function(b) { b.disabled = running; });
   const confirmRun = document.getElementById('btn-confirm-run');
   if (confirmRun) confirmRun.disabled = running;
