@@ -1,0 +1,91 @@
+{
+  "version": "2.0",
+  "tasks": [
+    {
+      "id": "T001",
+      "name": "语文错别字识别",
+      "subject": "语文",
+      "source_dir": "test_chinese",
+      "data_type": "excel_embedded_image",
+      "sample_hints": [
+        "test_chinese/v4/gemini_3.0_flash_v0/sample.xlsx",
+        "test_chinese/v3/gemini_3.0_flash_v0/sample.xlsx",
+        "错别字/（与 test_chinese 同构，脚本目录放 sample.xlsx）"
+      ],
+      "platform_template": "classify_chinese_typo"
+    },
+    {
+      "id": "T002",
+      "name": "答案卷 OCR 标答质检",
+      "subject": "语文",
+      "source_dir": "答案卷_划题_错误识别",
+      "data_type": "csv_url_image",
+      "sample_hints": [
+        "答案卷_划题_错误识别/data/prior_test_100.csv",
+        "答案卷_划题_错误识别/data/prior_test_500_crop.csv",
+        "原任务/T002_语文_答案卷OCR质检/data/sample_10rows.csv"
+      ],
+      "entry_script": "model_runs/gemini_3.1_flash_lite_v0/run_verify.py"
+    },
+    {
+      "id": "T003",
+      "name": "数学高优抛出批改",
+      "subject": "数学",
+      "source_dir": "3.5数学高优抛出",
+      "data_type": "csv_url_image",
+      "sample_hints": [
+        "3.5数学高优抛出/test_cases.csv",
+        "3.5数学高优抛出/gemini-3-flash-preview/sample_clean.xlsx",
+        "原任务/T003_数学_高优抛出批改/data/sample_10rows.csv"
+      ],
+      "entry_script": "3.5数学高优抛出/gemini-3-flash-preview/grade_math.py"
+    },
+    {
+      "id": "T004",
+      "name": "英语读后续写评分",
+      "subject": "英语",
+      "source_dir": "英语大偏差",
+      "data_type": "text_only",
+      "sample_hints": [
+        "英语大偏差/original_data/原始数据.csv",
+        "原任务/T004_英语_读后续写评分/data/sample_2rows.csv"
+      ],
+      "entry_script": "英语大偏差/llm_score_continuation.py"
+    },
+    {
+      "id": "T005",
+      "name": "初中几何证明/作图",
+      "subject": "数学",
+      "source_dir": "test_math/初中几何证明",
+      "data_type": "excel_url",
+      "sample_hints": [
+        "test_math/初中几何证明/sample.xlsx"
+      ],
+      "platform_template": "score_geometry_proof"
+    },
+    {
+      "id": "T006",
+      "name": "数学作图题（采分点）",
+      "subject": "数学",
+      "source_dir": "数学作图题",
+      "data_type": "excel_embedded_image",
+      "sample_hints": [
+        "数学作图题/sample.xlsx",
+        "数学作图题_v0/sample.xlsx"
+      ],
+      "note": "以有 sample.xlsx 的目录为准，当前优先 数学作图题",
+      "platform_template": "score_drawing_math"
+    },
+    {
+      "id": "T007",
+      "name": "英语高优抛出批改",
+      "subject": "英语",
+      "source_dir": "3.6英语高优抛出",
+      "data_type": "excel_url",
+      "sample_hints": [
+        "3.6英语高优抛出/doubao-seed-2-0-lite-260215_v1/sample_clean.xlsx"
+      ],
+      "entry_script": "3.6英语高优抛出/doubao-seed-2-0-lite-260215_v1/grade_english.py"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+uploads/*
+!uploads/.gitkeep
+backups/*
+!backups/.gitkeep
+prepared/*
+!prepared/.gitkeep
+snapshots/*
+!snapshots/.gitkeep
+jobs_state.json
+__pycache__/
+*.pyc
+_ui_polish.py

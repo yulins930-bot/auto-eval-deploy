@@ -1,0 +1,2991 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动化评测</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --c-bg: #f4f5f7;
+    --c-text: #2d3436;
+    --c-muted: #636e72;
+    --c-border: #dfe6e9;
+    --c-primary: #5c6b7a;
+    --c-primary-hover: #4a5568;
+    --c-primary-soft: #eef1f4;
+    --c-success: #6b8f71;
+    --c-success-soft: #eef4ef;
+    --c-warn: #9a7b4f;
+    --c-warn-soft: #f6f2eb;
+    --c-danger: #a06767;
+    --c-sidebar: #2c3338;
+  }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: var(--c-bg); color: var(--c-text); }
+
+  /* Sidebar */
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 220px; background: var(--c-sidebar); color: #c8cdd2; padding: 20px 0; z-index: 100; }
+  .sidebar h2 { padding: 0 20px 24px; font-size: 18px; color: #fff; border-bottom: 1px solid #3d454c; margin-bottom: 12px; font-weight: 600; }
+  .sidebar .nav-item { padding: 10px 20px; cursor: pointer; font-size: 14px; transition: background 0.15s; }
+  .sidebar .nav-item:hover { background: #383f45; }
+  .sidebar .nav-item.active { background: var(--c-primary); color: #fff; }
+
+  .main { margin-left: 220px; min-height: 100vh; }
+  .topbar { background: #fff; padding: 16px 32px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; }
+  .topbar h1 { font-size: 18px; font-weight: 600; }
+
+  .page { display: none; padding: 32px; max-width: 1440px; margin: 0 auto; }
+  .page.active { display: block; animation: fadeIn 0.2s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+  .card { background: #fff; border-radius: 12px; padding: 28px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card h3 { font-size: 16px; margin-bottom: 16px; color: #2d3436; }
+  .hero-card { background: linear-gradient(135deg, #ffffff 0%, #f6f8fb 100%); border: 1px solid #e7ebef; }
+  .hero-title { font-size: 24px; line-height: 1.35; margin-bottom: 8px; font-weight: 700; color: #20262c; }
+  .hero-subtitle { font-size: 14px; color: var(--c-muted); line-height: 1.8; max-width: 880px; }
+  .guidance-grid { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 12px; margin-top: 18px; }
+  .guidance-card { background: #fff; border: 1px solid #edf0f2; border-radius: 10px; padding: 14px 16px; }
+  .guidance-card strong { display: block; font-size: 14px; color: var(--c-text); margin-bottom: 6px; }
+  .guidance-card span { display: block; font-size: 12px; color: var(--c-muted); line-height: 1.6; }
+
+  /* Forms */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 14px; font-weight: 600; color: #2d3436; margin-bottom: 6px; }
+  .form-group .sub { font-weight: 400; color: #636e72; font-size: 13px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 14px; border: 1px solid #dfe6e9; border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color 0.15s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px rgba(92,107,122,0.12); }
+  .form-group textarea { resize: vertical; }
+  .hint { font-size: 12px; color: #b2bec3; margin-top: 4px; }
+
+  /* Upload */
+  .upload-area { border: 2px dashed #dfe6e9; border-radius: 12px; padding: 40px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .upload-area:hover { border-color: #a8b4be; background: #fafbfc; }
+  .upload-area.has-file { border-color: var(--c-success); background: var(--c-success-soft); border-style: solid; }
+
+  /* Buttons */
+  .btn { padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .btn-primary { background: var(--c-primary); color: #fff; }
+  .btn-primary:hover { background: var(--c-primary-hover); }
+  .btn-secondary { background: #e8eaed; color: var(--c-text); }
+  .btn-secondary:hover { background: #dde1e5; }
+  .btn-success { background: var(--c-success); color: #fff; }
+  .btn-success:hover { background: #5d7d63; }
+  .btn-outline { background: #fff; color: var(--c-primary); border: 1px solid var(--c-border); }
+  .btn-outline:hover { background: var(--c-primary-soft); }
+  .btn.selected, .run-opt.selected { background: var(--c-primary-soft); border-color: var(--c-primary); color: var(--c-primary); box-shadow: inset 0 0 0 1px var(--c-primary); }
+  .btn-lg { padding: 14px 36px; font-size: 16px; }
+  .btn-group { display: flex; gap: 12px; margin-top: 24px; }
+  .mode-switch { display:flex; gap:8px; align-items:center; margin:12px 0 16px; flex-wrap:wrap; }
+  .mode-switch .mode-chip {
+    padding: 6px 12px;
+    border: 1px solid var(--c-border);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--c-muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .mode-switch .mode-chip.active {
+    background: var(--c-primary-soft);
+    border-color: var(--c-primary);
+    color: var(--c-primary);
+    font-weight: 600;
+  }
+
+  /* Stepper - minimal */
+  .stepper { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+  .step { display: flex; align-items: center; gap: 8px; }
+  .step .dot { width: 32px; height: 32px; border-radius: 50%; border: 2px solid #dfe6e9; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #b2bec3; }
+  .step.active .dot { background: var(--c-primary); border-color: var(--c-primary); color: #fff; }
+  .step.done .dot { background: var(--c-success); border-color: var(--c-success); color: #fff; }
+  .step .slabel { font-size: 13px; color: #b2bec3; font-weight: 500; }
+  .step.active .slabel { color: var(--c-primary); }
+  .step.done .slabel { color: var(--c-success); }
+  .step-line { width: 48px; height: 2px; background: #dfe6e9; margin: 0 6px; }
+  .step-line.done { background: var(--c-success); }
+
+  /* Info boxes */
+  .info-box { border-radius: 8px; padding: 14px 18px; font-size: 13px; line-height: 1.6; margin-bottom: 16px; }
+  .info-box.green, .info-box.ok { background: var(--c-success-soft); border: 1px solid #d5e3d7; color: #4a6b50; }
+  .info-box.blue, .info-box.info { background: var(--c-primary-soft); border: 1px solid #d5dbe0; color: #4a5568; }
+  .info-box.orange { background: var(--c-warn-soft); border: 1px solid #e5ddd0; color: var(--c-warn); }
+  .verdict-box { background: var(--c-primary-soft); border: 1px solid #d5dbe0; border-radius: 8px; padding: 16px 18px; margin-bottom: 14px; }
+  .verdict-box .verdict-title { font-size: 15px; font-weight: 700; color: var(--c-text); margin-bottom: 6px; }
+  .verdict-box .verdict-action { font-size: 14px; color: var(--c-primary); font-weight: 600; }
+  .run-plan-panel { background: #fafbfc; border: 1px solid var(--c-border); border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .run-plan-panel strong { display: block; margin-bottom: 8px; }
+
+  /* Column tags */
+  .col-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .col-tag { background: #f0f0f0; padding: 4px 10px; border-radius: 6px; font-size: 12px; color: #636e72; }
+
+  /* Column mapping - clean table */
+  .mapping-table { width: 100%; border-collapse: collapse; }
+  .mapping-table th { text-align: left; padding: 8px 12px; font-size: 12px; color: #636e72; font-weight: 600; border-bottom: 2px solid #eee; }
+  .mapping-table td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; font-size: 14px; }
+  .mapping-table select { padding: 6px 10px; border: 1px solid #dfe6e9; border-radius: 6px; font-size: 13px; font-family: inherit; }
+  .mapping-table .role-label { font-weight: 600; color: #2d3436; }
+  .mapping-table .role-hint { font-size: 11px; color: #b2bec3; }
+  .mapping-core-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+  .mapping-panel { border: 1px solid #eef0f2; border-radius: 10px; padding: 14px; background: #fff; }
+  .advanced-toggle { cursor: pointer; color: var(--c-primary); font-size: 13px; font-weight: 600; margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; }
+  .advanced-panel { display: none; margin-top: 12px; padding: 12px; border: 1px solid var(--c-border); border-radius: 10px; background: #fafafa; }
+  .advanced-panel.open { display: block; }
+  .quick-examples { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+  .quick-example { padding: 10px 12px; border: 1px solid #edf0f2; border-radius: 8px; background: #fafafa; font-size: 12px; color: var(--c-muted); line-height: 1.5; }
+
+  /* Model grid */
+  .model-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+  .model-item { border: 2px solid #dfe6e9; border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; }
+  .model-item:hover { border-color: #a8b4be; }
+  .model-item.checked { border-color: var(--c-primary); background: var(--c-primary-soft); }
+  .model-item .mc { width: 20px; height: 20px; border: 2px solid #b2bec3; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #fff; flex-shrink: 0; }
+  .model-item.checked .mc { background: var(--c-primary); border-color: var(--c-primary); }
+  .model-item .mn { font-size: 14px; font-weight: 600; }
+  .model-item .mp { font-size: 11px; color: #636e72; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .row .form-group { flex: 1; min-width: 140px; }
+  .custom-model-chip { display: inline-flex; align-items: center; gap: 8px; background: var(--c-primary-soft); border: 1px solid #d5dbe0; padding: 6px 12px; border-radius: 8px; font-size: 13px; margin: 4px 8px 4px 0; }
+  .custom-model-chip button { border: none; background: transparent; color: var(--c-danger); cursor: pointer; font-size: 16px; line-height: 1; }
+  .info-box.warn { background: var(--c-warn-soft); border: 1px solid #e5ddd0; color: var(--c-warn); }
+
+  /* Summary table */
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table td { padding: 8px 0; font-size: 14px; vertical-align: top; }
+  .summary-table .sk { color: #636e72; width: 100px; }
+  .summary-table .sv { font-weight: 500; }
+
+  /* Editable tag */
+  .editable { cursor: pointer; border-bottom: 1px dashed var(--c-primary); color: var(--c-primary); }
+  .editable:hover { color: var(--c-primary-hover); }
+
+  /* Tag */
+  .tag { display: inline-block; background: #eef1f4; color: var(--c-muted); padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 500; margin-right: 4px; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid #eee; margin: 20px 0; }
+
+  /* Prompt 编辑区 */
+  textarea.prompt,
+  #prompt-template {
+    width: 100%;
+    min-height: 360px;
+    font-size: 13px;
+    line-height: 1.6;
+    font-family: Consolas, "Microsoft YaHei UI", monospace;
+    padding: 14px 16px;
+    border: 1px solid #dfe6e9;
+    border-radius: 8px;
+    resize: vertical;
+    box-sizing: border-box;
+  }
+
+  /* Task table */
+  .task-table { width: 100%; border-collapse: collapse; }
+  .task-table th { text-align: left; padding: 10px 12px; font-size: 12px; color: #636e72; font-weight: 600; border-bottom: 2px solid #dfe6e9; }
+  .task-table td { padding: 14px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+  .task-table tr:hover td { background: #f8fbff; cursor: pointer; }
+  .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .status-done { background: #e8f5e9; color: #00b894; }
+  .status-running { background: #fff3e0; color: #e17055; }
+  .status-draft { background: #f0f0f0; color: #636e72; }
+
+  /* Result page */
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .result-card { background: #fff; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .result-card .rv { font-size: 28px; font-weight: 700; color: #0984e3; }
+  .result-card .rl { font-size: 12px; color: #636e72; margin-top: 4px; }
+  .result-card.best .rv { color: #00b894; }
+  .readiness-card { border: 1px solid #d4e6f9; background: #f8fbff; }
+  .readiness-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .readiness-title.high { color: #00b894; }
+  .readiness-title.medium { color: #0984e3; }
+  .readiness-title.low { color: #d63031; }
+  .mini-list { margin: 8px 0 0 18px; color: #636e72; font-size: 13px; line-height: 1.7; }
+  .spec-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .spec-block { background: #fff; border: 1px solid #eee; border-radius: 8px; padding: 12px; font-size: 13px; }
+  .spec-block strong { display: block; margin-bottom: 6px; color: #2d3436; }
+
+  .compare-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .compare-table th { background: #f8f9fa; padding: 12px 16px; font-size: 13px; color: #636e72; text-align: left; font-weight: 600; }
+  .compare-table td { padding: 14px 16px; border-top: 1px solid #f0f0f0; font-size: 14px; }
+  .best-cell { color: #00b894; font-weight: 700; }
+  .progress-bar-bg { background: #eee; border-radius: 4px; height: 8px; overflow: hidden; margin-top: 4px; }
+  .progress-bar-fill { height: 100%; border-radius: 4px; }
+
+  .meta-pills { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .meta-pill { background: #f0f0f0; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: #636e72; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+  .running-dot { width: 6px; height: 6px; background: #e17055; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px; animation: pulse 1.2s infinite; }
+
+  /* Expand/collapse */
+  .expandable-header { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .expandable-header .arrow { transition: transform 0.2s; color: #b2bec3; }
+  .expandable-header.open .arrow { transform: rotate(90deg); }
+  .expandable-body { display: none; padding-top: 12px; }
+  .expandable-body.open { display: block; }
+
+  .section-mini-title { font-size: 14px; font-weight: 600; color: #2d3436; margin: 22px 0 12px; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+  .radio-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 8px; }
+  .radio-row label { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; font-size: 14px; color: #2d3436; cursor: pointer; }
+  .radio-row input { width: auto; accent-color: #0984e3; }
+
+  #demo-banner { display: none; background: #e8f4fd; border-bottom: 1px solid #bee3f8; padding: 8px 32px; font-size: 13px; color: #0770c2; margin: 0; }
+  #demo-banner.show { display: block; }
+  .upload-area.uploading { pointer-events: none; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <h2>自动化评测</h2>
+  <div class="nav-item active" onclick="showPage('list')">工作验证台</div>
+  <div class="nav-item" onclick="startNewTask()">开始验证</div>
+  <div class="nav-item" onclick="showPage('result')">建议报告</div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <h1 id="page-title">工作验证台</h1>
+    <a href="javascript:void(0)" onclick="showPage('list')" style="font-size:13px;color:var(--c-primary);text-decoration:none;">用真实数据判断：这件事能不能交给 AI</a>
+  </div>
+  <div id="demo-banner">已连接 · <strong>真实 LLM</strong>（自备 API Key）。双击 <code style="background:#fff;padding:2px 6px;border-radius:4px;">start_demo.bat</code> → http://127.0.0.1:5050</div>
+
+  <!-- ════════ 任务列表 ════════ -->
+  <div class="page active" id="page-list">
+    <div class="card hero-card">
+      <div class="hero-title">用一份 Excel，验证这件工作能不能交给 AI</div>
+      <div class="hero-subtitle">描述你的重复工作，上传一小批真实样本，平台会帮你跑模型、比结果、找风险，最后给出“建议自动化 / 建议半自动 / 暂不建议”。你不需要先写代码，也不需要一开始就写 Prompt。</div>
+      <div class="guidance-grid">
+        <div class="guidance-card"><strong>1. 说清任务</strong><span>这是什么工作？每行数据代表什么？AI 应该输出什么？</span></div>
+        <div class="guidance-card"><strong>2. 小样本验证</strong><span>先跑 5-20 行，确认输出能解析、结果接近人工判断。</span></div>
+        <div class="guidance-card"><strong>3. 看自动化建议</strong><span>得到推荐模型、主要风险、成本耗时和下一步行动。</span></div>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+      <div style="font-size:14px; color:#636e72;"><span id="task-list-count">加载任务库…</span></div>
+      <button class="btn btn-primary" onclick="startNewTask()">开始验证一个工作</button>
+    </div>
+    <div class="card" style="padding:0; overflow:hidden;">
+      <table class="task-table">
+        <thead><tr><th>状态</th><th>任务 / 文件</th><th>结果</th><th>操作</th></tr></thead>
+        <tbody id="registry-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════ 新建任务 — 3 步 ════════ -->
+  <div class="page" id="page-create">
+    <div class="stepper" id="stepper">
+      <div class="step active" data-step="1" style="cursor:pointer" onclick="stepperGo(1)"><div class="dot">1</div><span class="slabel">描述工作</span></div>
+      <div class="step-line"></div>
+      <div class="step" data-step="2" style="cursor:pointer" onclick="stepperGo(2)"><div class="dot">2</div><span class="slabel">确认 AI 怎么做</span></div>
+      <div class="step-line"></div>
+      <div class="step" data-step="3" style="cursor:pointer" onclick="stepperGo(3)"><div class="dot">3</div><span class="slabel">运行实验</span></div>
+    </div>
+
+    <!-- ──── Step 1：上传 + 描述 ──── -->
+    <div class="card step-content" id="step-1">
+      <h3>第 1 步：描述你想自动化的工作</h3>
+      <p style="font-size:13px; color:#636e72; margin:-8px 0 16px;">不用写 Prompt。你只要说清楚这份表格是什么、AI 每行要判断什么、有没有人工答案。平台会帮你生成可运行的验证方案。</p>
+      <div class="quick-examples">
+        <div class="quick-example"><strong>作业批改质检</strong><br>每行一份学生答案，对比人工标注，输出是否一致和简短原因。</div>
+        <div class="quick-example"><strong>客服回复提效</strong><br>每行一条用户问题，批量生成回复草稿、风险标签和置信度。</div>
+      </div>
+
+      <input type="file" id="file-input" accept=".xlsx,.csv" style="display:none">
+
+      <div class="form-group">
+        <label>1. 上传样本数据</label>
+        <div class="upload-area" id="upload-area">
+          <div style="font-size:32px; margin-bottom:8px;"></div>
+          <div style="font-size:14px; color:#636e72;">点击或拖拽上传 <strong style="color:#0984e3;">Excel / CSV</strong></div>
+          <div class="hint" style="margin-top:8px;">.xlsx / .csv，最大 50MB · 建议先用 20-200 行样本，不要一上来全量。</div>
+        </div>
+      </div>
+
+      <div id="after-upload" style="display:none;">
+        <div class="info-box green" id="upload-parse-summary">
+          已上传 <strong id="upload-filename">sample.xlsx</strong> — <span id="upload-rows">0</span> 行，<span id="upload-cols">0</span> 列
+          <div class="col-tags" id="col-tags"></div>
+        </div>
+
+        <div class="section-mini-title">2. 这是什么工作？</div>
+        <div class="form-group">
+          <label>选择最接近的任务类型</label>
+          <select id="run-purpose">
+            <option value="eval">批阅 / 打分：判断答案、作业、内容是否达标</option>
+            <option value="compare">分类 / 标注：给每行数据打标签或档位</option>
+            <option value="cost">质检 / 审核：发现风险、错误或异常</option>
+            <option value="extract">提取 / 摘要：从文本或图片中抽取结构化信息</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>数据是否含敏感信息？</label>
+          <div class="radio-row">
+            <label><input type="radio" name="sensitive" value="no" checked> 否，可直接用于测试</label>
+            <label><input type="radio" name="sensitive" value="masked"> 有，但已脱敏 / 仅测试样本</label>
+            <label><input type="radio" name="sensitive" value="unmasked"> 有，未脱敏</label>
+          </div>
+          <div class="hint">若选择“有，未脱敏”，平台会阻止进入第 2 步，请先脱敏或改用测试样本。</div>
+        </div>
+
+        <div class="section-mini-title">3. 说明这份数据集</div>
+        <div class="form-group">
+          <label>数据集说明<span class="sub"> 建议写清：一行代表什么、关键列含义、有没有人工标注列</span></label>
+          <textarea rows="3" placeholder="例：每行是一道待标注题目，需要结合“原题信息”和“推题信息”判断是否可用，人工标注列是“是否可用”。" id="dataset-desc" style="font-size:14px; line-height:1.6;"></textarea>
+          <div class="hint">列名请尽量使用文件里真实存在的名称。下一步只读取列名和前 5 行样本来理解任务，不会默认扫描全表。</div>
+        </div>
+
+        <div class="section-mini-title">4. 你希望 AI 每行输出什么？</div>
+        <div class="form-group">
+          <label>期望输出<span class="sub"> 必填</span></label>
+          <textarea rows="3" id="user-output-expect" placeholder="例：输出“是否可用”，可选值为 可用 / 勉强可用 / 不可用，并给一句简短理由。"></textarea>
+          <div class="hint">如果有人工答案，AI 输出要能和人工答案直接比较；如果没有人工答案，平台会用多模型一致率和分歧样本来判断是否值得继续。</div>
+        </div>
+        <div class="section-mini-title">5. 可选上传规则/标准文档</div>
+        <div class="form-group">
+          <label>规则/标准文档<span class="sub"> .txt / .md，最大 512KB；支持删除与替换</span></label>
+          <input type="file" id="rubric-file-input" accept=".txt,.md" style="display:none">
+          <div class="upload-area" id="rubric-upload-area" style="padding:18px 20px; text-align:left;">
+            <div style="font-size:14px; color:#636e72;">点击上传评分标准（可选）</div>
+            <div class="hint" id="rubric-upload-hint" style="margin-top:6px;">澄清与补充说明时会将该文档一并交给大模型。</div>
+            <div id="rubric-upload-label" style="font-size:12px;color:#2d3436;margin-top:6px;"></div>
+          </div>
+          <div class="btn-group" style="margin-top:10px;">
+            <button type="button" class="btn btn-secondary" id="rubric-delete-btn" onclick="deleteRubricFile()" style="display:none;">删除文档</button>
+          </div>
+        </div>
+        <div class="section-mini-title">6. 用哪个模型帮你生成验证方案</div>
+        <div class="row">
+          <div class="form-group"><label>厂商</label><select id="clarify-vendor"></select></div>
+          <div class="form-group"><label>模型</label><select id="clarify-model-key"></select></div>
+        </div>
+        <div class="form-group" id="clarify-custom-model-wrap" style="display:none;">
+          <label>自定义模型 ID<span class="sub"> 与厂商 API 文档一致</span></label>
+          <input type="text" id="custom-clarify-model-id" placeholder="如 gemini-3.5-flash、gpt-5.5">
+        </div>
+        <div class="form-group">
+          <label>API Key</label>
+          <input type="password" id="api-key" autocomplete="off" placeholder="请先选择厂商">
+          <div class="hint" id="api-key-hint">须与所选厂商一致。Key 只用于本地调用模型，不会写入结果文件。</div>
+        </div>
+
+      </div>
+
+      <div class="btn-group" style="justify-content:flex-end;">
+        <button class="btn btn-primary" onclick="startClarify()" id="btn-next-1" style="display:none;">下一步：生成验证方案 →</button>
+      </div>
+    </div>
+
+    <!-- ──── Step 2：确认理解（动态） ──── -->
+    <div class="card step-content" id="step-2" style="display:none;">
+      <h3>第 2 步：确认 AI 怎么做、怎么判断</h3>
+      <div id="step2-purpose" class="info-box info" style="margin-bottom:16px;"><strong>本步只看流程是否对</strong><br>模型先读什么（输入列）→ 输出什么（JSON/标签）→ 是否符合你的数据集理解。先看懂，不必急着手改。</div>
+      <div class="mode-switch">
+        <span style="font-size:12px;color:#636e72;">当前视图：</span>
+        <button type="button" class="mode-chip active" id="step2-mode-basic" onclick="setStep2Mode('basic')">基础模式</button>
+        <button type="button" class="mode-chip" id="step2-mode-advanced" onclick="setStep2Mode('advanced')">高级模式</button>
+        <span id="step2-mode-hint" class="hint">基础模式：看懂输入/输出/Prompt 是否正确。</span>
+      </div>
+      <div id="clarify-model-used" class="info-box info" style="display:none;"></div>
+      <div id="clarify-warnings"></div>
+      <div id="clarify-summary"></div>
+      <h4 style="font-size:14px;margin:16px 0 8px;">验证方案摘要</h4>
+      <p class="hint" style="margin-bottom:10px;">先看这张摘要：它决定 AI 看什么、输出什么、怎么判断。看不懂或不符合业务时，再改下面的列映射。</p>
+      <div id="harness-contract-preview" class="info-box info" style="display:none;margin:12px 0;"></div>
+      <h4 style="font-size:14px;margin:16px 0 8px;">确认数据列</h4>
+      <p class="hint" style="margin-bottom:10px;">通常只需要确认核心输入和人工标注。下拉后缀为「有值行数/总行」。</p>
+      <div id="field-mapping-body"></div>
+      <div id="comparability-hint" class="info-box info" style="display:none;margin:12px 0;"></div>
+      <h4 style="font-size:14px;margin:16px 0 8px;">AI 每行输出</h4>
+      <div id="output-spec"></div>
+      <div id="clarify-questions" style="margin:16px 0;"></div>
+      <div class="form-group" style="margin:12px 0 16px;">
+        <label>告诉 AI 你希望如何修改 Prompt<span class="sub"> 常驻；可单独填写后让 AI 重写</span></label>
+        <textarea id="prompt-revision-instruction" rows="3" placeholder="例如：保留当前字段映射，但把输出改为严格 JSON；先判断采分点再给总分；理由控制在 20 字以内。"></textarea>
+        <p class="hint" style="margin-top:6px;">这个输入会和上方澄清答案一起传给 AI。即使上方没有追问，也可以只填这里。</p>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button type="button" class="btn btn-primary" id="btn-supplement-clarify" onclick="submitSupplementClarify()">提交补充，AI 重新理解</button>
+          <span id="supplement-clarify-status" class="hint"></span>
+        </div>
+      </div>
+      <div id="step2-advanced-block">
+        <div class="form-group">
+          <label>给模型的指令（Prompt）<span class="sub"> 核心检查：是否引用了输入列、输出格式是否符合你的任务</span></label>
+          <textarea id="prompt-template" class="prompt"></textarea>
+          <p class="hint" style="margin-top:6px;">一般不用从零写 Prompt。基础模式建议先看对不对；要改就用上面的「告诉 AI 如何修改」。</p>
+        </div>
+        <div class="card" id="step2-strategy-card" style="background:#fafafa;padding:16px;margin:16px 0;border:1px solid #eee;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+            <input type="checkbox" id="strategy-enabled" onchange="toggleStrategyPanel()">
+            启用优化策略
+          </label>
+          <div id="strategy-panel" style="display:none;margin-top:14px;">
+            <p class="hint" style="margin:0 0 10px;">JSON 输出是格式约束；one-shot / few-shot / 逐步核对会直接改 Prompt。勾选后点「应用到 Prompt」固化。</p>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-json" disabled onchange="updateStrategyPreview()"> JSON 输出格式（字段可解析、可比对）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-one-shot" disabled onchange="updateStrategyPreview()"> One-shot（给 1 个输出示例）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-few-shot" disabled onchange="updateStrategyPreview()"> Few-shot（给正/负边界样例）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-cot" disabled onchange="updateStrategyPreview()"> 逐步核对（内部思考，只输出简短依据）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-multi" disabled> 多模型（第 3 步多选，不改 Prompt）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-repeat" disabled onchange="toggleStrategySubOpts()"> 单模型多次评测，共 <input type="number" id="st-repeat-n" min="2" max="5" value="2" style="width:48px;" disabled> 次（更稳但耗时成倍增加）</label>
+            <label style="display:block;margin:8px 0;font-weight:400;"><input type="checkbox" id="st-conf" disabled onchange="toggleStrategySubOpts();updateStrategyPreview()"> 置信度：输出 confidence，低于 <input type="number" id="st-conf-th" min="0" max="1" step="0.05" value="0.8" style="width:56px;" disabled> 的行不参与一致率统计</label>
+            <div id="strategy-preview" class="hint" style="display:none;margin-top:10px;padding:10px;background:#fff;border:1px dashed #ddd;border-radius:6px;white-space:pre-wrap;font-size:12px;"></div>
+            <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+              <button type="button" class="btn btn-secondary" style="padding:7px 12px;font-size:12px;" onclick="applySelectedStrategiesToPrompt()">应用到 Prompt</button>
+              <span id="strategy-apply-status" class="hint"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="hint" style="margin:0 0 12px;">先确认方案并准备数据，再用 1 行试跑检查输出是否能解析。</p>
+      <div id="validate-status" class="info-box info" style="display:none;"></div>
+      <div id="prepare-status" class="info-box info" style="display:none;"></div>
+      <div class="btn-group" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <button class="btn btn-secondary" onclick="goStep(1)">← 上一步</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="confirmAndPrepare()">确认方案，准备试跑</button>
+          <button class="btn btn-primary" onclick="goToStep3()" id="btn-to-step3" disabled>选择模型并运行实验 →</button>
+          <button class="btn btn-secondary" onclick="validatePromptSetup(true)" id="btn-validate-prompt" disabled>先试跑 1 行</button>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:8px;">路径提示：先点「确认方案」，再点右侧「选择模型并运行实验」。</p>
+    </div>
+
+<!-- ──── Step 3：选模型 & 跑 ──── -->
+    <div class="card step-content" id="step-3" style="display:none;">
+      <h3>第 3 步：运行可行性实验</h3>
+      <p style="font-size:13px; color:#636e72; margin-bottom:12px;">建议先跑 5-20 行，看输出是否稳定、能否解析、是否接近人工判断。通过后再全量。跨厂商对比时请分别填写 API Key。</p>
+      <div class="info-box info" style="margin-bottom:16px;"><strong>小样本优先</strong><br>先试跑可以避免全量跑完才发现输出格式不对、Key 配错、或模型根本不适合这类任务。</div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>各厂商 API Key（按所选模型自动显示）</label>
+        <div id="vendor-api-keys" style="display:flex;flex-direction:column;gap:10px;"></div>
+        <div class="hint" style="margin-top:8px;">第 1 步同厂商的 Key 会自动填入；多厂商评测须分别填写。也可设环境变量（如 GEMINI_API_KEY、OPENAI_API_KEY）。</div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label>备用 Key（可选）</label>
+        <input type="password" id="run-batch-api-key" autocomplete="off" placeholder="仅在选择单一厂商且上方未填时使用">
+      </div>
+
+      <div class="model-grid" style="margin-bottom:24px;">
+        <div class="model-item checked" data-model-key="gemini-3.5-flash" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Gemini 3.5 Flash</div><div class="mp">快 · 最新 Flash</div></div></div>
+        <div class="model-item" data-model-key="gpt-5.5" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">GPT-5.5</div><div class="mp">OpenAI 最新</div></div></div>
+        <div class="model-item" data-model-key="gpt-5.2" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">GPT-5.2</div><div class="mp">高精度</div></div></div>
+        <div class="model-item" data-model-key="gemini-3.1-pro" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Gemini 3.1 Pro</div><div class="mp">高精度</div></div></div>
+        <div class="model-item" data-model-key="gemini-3.1-flash-lite" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Gemini 3.1 Flash-Lite</div><div class="mp">低成本</div></div></div>
+        <div class="model-item" data-model-key="doubao-seed-pro" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">豆包 Seed Pro</div><div class="mp">国产 · 高精度</div></div></div>
+        <div class="model-item" data-model-key="doubao-seed-lite" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">豆包 Seed Lite</div><div class="mp">国产 · 便宜</div></div></div>
+        <div class="model-item" data-model-key="doubao-seed-mini" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">豆包 Seed Mini</div><div class="mp">国产 · 低成本</div></div></div>
+        <div class="model-item" data-model-key="doubao-seed-1-6-flash" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">豆包 1.6 Flash</div><div class="mp">国产 · 无思考快模型</div></div></div>
+        <div class="model-item" data-model-key="doubao-seed-1-6-thinking" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">豆包 1.6 Thinking</div><div class="mp">国产 · 思考</div></div></div>
+        <div class="model-item" data-model-key="glm-4.6v" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">GLM-4.6V</div><div class="mp">智谱 · 多模态</div></div></div>
+        <div class="model-item" data-model-key="qwen-flash" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Qwen Flash</div><div class="mp">通义 · 快</div></div></div>
+        <div class="model-item" data-model-key="qwen-plus" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Qwen Plus</div><div class="mp">通义 · 均衡</div></div></div>
+        <div class="model-item" data-model-key="qwen-max" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Qwen Max</div><div class="mp">通义 · 高精度</div></div></div>
+        <div class="model-item" data-model-key="qwen3-max-thinking" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Qwen3 Max Thinking</div><div class="mp">通义 · 推理</div></div></div>
+        <div class="model-item" data-model-key="qwen-vl-plus" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">Qwen VL Plus</div><div class="mp">通义 · 看图</div></div></div>
+        <div class="model-item" data-model-key="deepseek-chat" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">DeepSeek Chat</div><div class="mp">DeepSeek · V3</div></div></div>
+        <div class="model-item" data-model-key="deepseek-reasoner" onclick="toggleModel(this)"><div class="mc"></div><div><div class="mn">DeepSeek Reasoner</div><div class="mp">DeepSeek · R1 推理</div></div></div>
+      </div>
+
+      <div class="card" style="background:#fffaf2;padding:16px;margin-bottom:20px;border:1px solid #f1dfc2;">
+        <h4 style="font-size:14px;margin-bottom:8px;">高级运行设置：豆包思考模式</h4>
+        <div class="row">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>思考模式</label>
+            <select id="doubao-thinking-mode">
+              <option value="disabled">关闭（默认，更快更省）</option>
+              <option value="auto">自动（模型自行判断）</option>
+              <option value="enabled">开启（更稳，可能更慢更贵）</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>思考预算 tokens（可选）</label>
+            <input type="number" id="doubao-thinking-budget" min="0" max="32768" step="1024" value="0" placeholder="0 表示不指定">
+          </div>
+        </div>
+        <div class="hint">仅对 Pro / Mini / 1.6 Thinking 等支持思考参数的豆包模型生效；Lite / Flash 会忽略。关闭时不向接口传 thinking 字段。</div>
+      </div>
+
+      <div class="card" style="background:#f8f9fa;padding:20px;margin-bottom:20px;">
+        <h4 style="font-size:14px;margin-bottom:8px;">高级运行设置：自定义模型（手动输入 ID）</h4>
+        <p style="font-size:12px;color:#636e72;margin-bottom:12px;">预设没有你要的型号时，填写 API 文档中的 model 名称并添加；可与上方预设多选一起跑。</p>
+        <div class="row">
+          <div class="form-group" style="margin-bottom:8px;"><label>厂商</label><select id="run-custom-vendor"></select></div>
+          <div class="form-group" style="margin-bottom:8px;"><label>Model ID</label><input type="text" id="run-custom-model-id" placeholder="如 gemini-3.5-flash、gpt-5.5"></div>
+          <div class="form-group" style="margin-bottom:8px;"><label>显示名（可选）</label><input type="text" id="run-custom-model-name" placeholder="结果页展示用"></div>
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="addCustomRunModel()">+ 添加到评测列表</button>
+        <div id="custom-models-list" style="margin-top:12px;"></div>
+      </div>
+
+      <hr class="divider">
+      <div style="display:flex; gap:16px; align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0; width:200px;">
+          <label>并发数</label>
+          <input type="number" id="run-concurrency" min="1" max="30" value="10" style="width:72px;">
+          <div class="hint">每模型内并行行数，默认 10。看图/vision 任务单条较慢，可适当调高；遇 API 限流再调低。多模型同时跑时总并发≈模型数×本值。</div>
+        </div>
+        <label style="font-size:13px;color:#2d3436;display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" id="run-stability-check">
+          稳定性复测（每行同一模型输出 2 次，统计一致率；耗时和成本约翻倍）
+        </label>
+      </div>
+
+      <div class="btn-group" style="justify-content:space-between; margin-top:28px; flex-wrap:wrap; gap:8px;">
+        <button class="btn btn-secondary" onclick="goStep(2)" id="btn-back-step2">← 上一步</button>
+        <button type="button" class="btn btn-secondary run-action-btn run-opt" onclick="selectRunPlan('unit', 5)">小样本试跑 5 行</button>
+        <button type="button" class="btn btn-secondary run-action-btn run-opt" onclick="selectRunPlan('unit', 15)">小样本 15 行</button>
+        <button type="button" class="btn btn-secondary run-action-btn run-opt" onclick="selectRunPlan('unit', 30)">小样本 30 行</button>
+        <button type="button" class="btn btn-primary run-action-btn run-opt" onclick="selectRunPlan('percent', 15)">抽样验证 15%</button>
+        <button type="button" class="btn btn-primary run-action-btn run-opt" onclick="selectRunPlan('percent', 30)">抽样验证 30%</button>
+        <button type="button" class="btn btn-primary run-action-btn run-opt" onclick="selectRunPlan('percent', 50)">抽样验证 50%</button>
+        <button type="button" class="btn btn-success run-action-btn run-opt" onclick="selectRunPlan('percent', 100)">全量验证</button>
+        <button type="button" class="btn btn-secondary run-action-btn run-opt" onclick="selectRunPlanCustom()">自定义</button>
+      </div>
+
+      <div id="run-plan-panel" class="run-plan-panel" style="display:none;">
+        <strong>已选实验方案</strong>
+        <div id="run-plan-summary" style="font-size:14px;color:var(--c-muted);margin-bottom:12px;">请先点击上方规模按钮</div>
+        <div class="btn-group" style="margin-top:0;">
+          <button type="button" class="btn btn-primary" id="btn-confirm-run" onclick="confirmAndExecuteRun()">确认并开始实验</button>
+          <button type="button" class="btn btn-secondary" onclick="clearRunPlan()">取消选择</button>
+        </div>
+      </div>
+
+      <!-- 评测进度（运行中显示） -->
+      <div id="run-progress" style="display:none; margin-top:24px;">
+        <hr class="divider">
+        <div style="text-align:center; padding:24px 0;">
+          <div style="font-size:18px; font-weight:600; margin-bottom:8px;" id="progress-title">正在评测…</div>
+          <div style="font-size:13px; color:#636e72; margin-bottom:16px;" id="progress-detail">准备中</div>
+          <div class="progress-bar-bg" style="max-width:480px; margin:0 auto; height:12px;">
+            <div class="progress-bar-fill" id="progress-bar" style="width:0%; background:#0984e3; transition:width 0.4s;"></div>
+          </div>
+          <div style="font-size:12px; color:#b2bec3; margin-top:8px;" id="progress-pct">0%</div>
+          <div style="font-size:12px; color:#636e72; margin-top:6px;" id="progress-eta"></div>
+          <div id="model-progress-list" style="max-width:620px;margin:18px auto 0;text-align:left;"></div>
+          <div style="margin-top:16px;">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-run" onclick="cancelCurrentRun()" style="display:none;">中止评测</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════ 结果页 ════════ -->
+  <div class="page" id="page-result">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px;">
+      <div>
+        <div style="font-size:13px;color:var(--c-muted);margin-bottom:4px;">自动化建议报告</div>
+        <h2 style="font-size:20px;" id="result-title">语文错别字识别</h2>
+        <div class="meta-pills" id="result-meta">
+          <span class="meta-pill">语文 · 小学</span>
+          <span class="meta-pill">437 行 · 1682 字</span>
+          <span class="meta-pill">2 个模型</span>
+        </div>
+        <div id="result-mode-note" style="font-size:12px;color:#bf6c00;margin-top:8px;display:none;">当前为演示评测，数字仅用于界面联调。</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-secondary" onclick="showPage('list')">返回历史</button>
+        <button type="button" class="btn btn-secondary" onclick="toggleResultHistory()">查看历史任务</button>
+        <button type="button" class="btn btn-secondary" onclick="viewRunSnapshot()">查看快照</button>
+        <button type="button" class="btn btn-secondary" id="btn-export-results" onclick="exportRunResults()">导出 CSV（完整测试集）</button>
+        <button class="btn btn-secondary" onclick="rerunFromStep2()">换模型 / 改方案再跑</button>
+      </div>
+    </div>
+
+    <div id="result-eval-note" class="info-box warn" style="display:none;margin-bottom:16px;"></div>
+    <div class="card readiness-card" id="readiness-report-card" style="display:none;margin-bottom:16px;">
+      <div class="readiness-title" id="readiness-verdict">—</div>
+      <div id="readiness-evidence" style="font-size:13px;color:#636e72;"></div>
+      <div id="readiness-risks"></div>
+      <div id="readiness-next"></div>
+    </div>
+    <div class="card" id="harness-spec-card" style="display:none;margin-bottom:16px;">
+      <h3>本次验证方案</h3>
+      <p style="font-size:12px;color:#636e72;margin:0 0 12px;">这次实验的可复跑规格：AI 看什么、输出什么、怎么判断、怎么沉淀。</p>
+      <div id="harness-spec-body" class="spec-grid"></div>
+    </div>
+    <div class="card" id="sample-gate-card" style="display:none;margin-bottom:16px;">
+      <h3>小样本试跑检查</h3>
+      <div id="sample-gate-body" style="font-size:13px;line-height:1.7;"></div>
+    </div>
+    <div class="card" id="result-history-card" style="display:none;margin-bottom:16px;">
+      <h3>历史任务</h3>
+      <div id="result-history-list" style="font-size:13px;color:#636e72;">加载中…</div>
+    </div>
+
+    <div class="card" id="result-analysis-card" style="margin-bottom:16px;">
+      <h3>用 AI 帮你解读这次实验</h3>
+      <p style="font-size:12px;color:#636e72;margin:0 0 12px;">根据本次指标生成业务结论：是否值得自动化、主要风险是什么、下一步该改 Prompt、换模型还是补标注。</p>
+      <button type="button" class="btn btn-primary" id="btn-analyze-results" onclick="fetchResultAnalysis()">生成自动化建议</button>
+      <div id="result-analysis-body" style="margin-top:16px;font-size:14px;line-height:1.7;"></div>
+      <button type="button" class="btn btn-success" id="btn-adopt-suggestions" style="display:none;margin-top:12px;" onclick="adoptSuggestions()">采纳建议并回第 2 步</button>
+    </div>
+    <div class="result-grid" id="result-summary-grid">
+      <div class="result-card best"><div class="rv" id="rs-accuracy">—</div><div class="rl" id="rs-accuracy-label">最佳人工一致率</div></div>
+      <div class="result-card"><div class="rv" id="rs-rows">—</div><div class="rl">处理行数</div></div>
+      <div class="result-card"><div class="rv" id="rs-judged">—</div><div class="rl" id="rs-judged-label">一致 / 可评估</div></div>
+      <div class="result-card"><div class="rv" id="rs-models">—</div><div class="rl">模型数</div></div>
+      <div class="result-card"><div class="rv" id="rs-time">—</div><div class="rl">总耗时</div></div>
+      <div class="result-card"><div class="rv" id="rs-row-time">—</div><div class="rl">单条耗时</div></div>
+      <div class="result-card"><div class="rv" id="rs-row-cost">—</div><div class="rl">估算单条成本</div></div>
+      <div class="result-card"><div class="rv" id="rs-stability">—</div><div class="rl">稳定性一致率</div></div>
+    </div>
+    <p id="result-api-footnote" style="font-size:12px;color:#b2bec3;margin:-8px 0 16px;display:none;"></p>
+
+    <div class="card">
+      <h3>模型效果对比</h3>
+      <p style="font-size:12px;color:#636e72;margin:0 0 12px;">有人工答案时，主看「和人工判断一致率」；没有人工答案时，主看「多模型一致率」。接口调用成功只表示模型有返回，不代表做对。</p>
+      <table class="compare-table">
+        <thead id="compare-thead"><tr><th>模型</th><th>和人工判断一致率</th><th>一致/可评估</th><th>耗时</th><th style="color:#b2bec3;font-weight:500;">接口调用成功</th></tr></thead>
+        <tbody id="compare-tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>AI 输出预览</h3>
+      <table class="compare-table">
+        <thead><tr><th>行</th><th>模型</th><th>模型预测</th><th>人工标注</th><th>分列</th><th>判断</th><th style="color:#b2bec3;font-weight:500;">接口</th><th>响应（截取）</th></tr></thead>
+        <tbody id="samples-tbody"></tbody>
+      </table>
+      <div style="margin-top:10px; font-size:12px; color:#b2bec3;">仅展示前 50 条，完整结果请点击上方「导出 CSV」。</div>
+    </div>
+
+    <div class="card" style="background:#f8fbff; border:1px solid #d4e6f9;">
+      <h3>下一步</h3>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="rerunFromStep2()">换模型 / 改验证方案（回第 2 步）</button>
+        <button class="btn btn-secondary" onclick="exportRunResults()">导出跑批结果 CSV</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ───── 全局状态 ───── */
+/* ── 动态澄清 UI（勿写死列名/任务类型） ── */
+window.__modelsCatalog = null;
+window.__columns = [];
+window.__customRunModels = [];
+window.__columnStats = {};
+window.__job = null;
+window.__clarified = null;
+window.__fieldMapping = null;
+window.__runId = null;
+window.__pollTimer = null;
+window.__promptValidated = false;
+window.__lastAnalysis = null;
+window.__lastResultPayload = null;
+window.__pendingRunPlan = null;
+window.__step2Mode = 'basic';
+
+function setValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value || '';
+}
+
+function setHtml(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html || '';
+}
+
+function deriveTaskTypeFromContext() {
+  const desc = ((document.getElementById('dataset-desc') || {}).value || '').trim();
+  if (desc) {
+    const first = desc.split(/[，。,.;；\n]/)[0].trim();
+    if (first) return first.slice(0, 40);
+  }
+  const fn = (window.__job && window.__job.filename) || '';
+  if (fn) return fn.replace(/\.[^.]+$/, '');
+  return '未命名任务';
+}
+
+function applyStep2ModeToDynamicSections() {
+  const basic = (window.__step2Mode || 'basic') === 'basic';
+  const advToggle = document.querySelector('#field-mapping-body .advanced-toggle');
+  const advPanel = document.getElementById('advanced-mapping-panel');
+  const strategyCard = document.getElementById('step2-strategy-card');
+  const promptEl = document.getElementById('prompt-template');
+  if (advToggle) advToggle.style.display = basic ? 'none' : 'inline-flex';
+  if (advPanel && basic) advPanel.classList.remove('open');
+  if (strategyCard) strategyCard.style.display = basic ? 'none' : 'block';
+  if (promptEl) {
+    promptEl.readOnly = basic;
+    promptEl.style.background = basic ? '#f6f7f8' : '#fff';
+  }
+  const taskType = document.getElementById('edit-task-type');
+  const outFmt = document.getElementById('edit-output-format');
+  const outDesc = document.getElementById('edit-output-desc');
+  [taskType, outFmt, outDesc].forEach(function(el) {
+    if (!el) return;
+    el.readOnly = basic;
+    el.style.background = basic ? '#f6f7f8' : '#fff';
+  });
+  const taskTypeHint = document.getElementById('task-type-note');
+  if (taskTypeHint) taskTypeHint.textContent = basic
+    ? '默认采用 AI 理解的任务名称；一般不用改。'
+    : '高级模式可修改，用于工作验证台展示。';
+  const outHint = document.getElementById('output-spec-note');
+  if (outHint) outHint.textContent = basic
+    ? '这里是 AI 已理解的输出定义，基础模式无需手动填写。'
+    : '高级模式可调整输出格式与说明。';
+}
+
+function setStep2Mode(mode) {
+  const m = mode === 'advanced' ? 'advanced' : 'basic';
+  window.__step2Mode = m;
+  const isBasic = m === 'basic';
+  const bb = document.getElementById('step2-mode-basic');
+  const ab = document.getElementById('step2-mode-advanced');
+  if (bb) bb.classList.toggle('active', isBasic);
+  if (ab) ab.classList.toggle('active', !isBasic);
+  const hint = document.getElementById('step2-mode-hint');
+  if (hint) hint.textContent = isBasic
+    ? '基础模式：看懂输入/输出/Prompt 是否正确。'
+    : '高级模式：可手改 Prompt、调高级映射和优化策略。';
+  applyStep2ModeToDynamicSections();
+}
+
+function resetUploadArea() {
+  const area = document.getElementById('upload-area');
+  if (!area) return;
+  area.classList.remove('has-file', 'uploading');
+  area.innerHTML = '<div style="font-size:32px; margin-bottom:8px;"></div>'
+    + '<div style="font-size:14px; color:#636e72;">点击或拖拽上传 <strong style="color:#0984e3;">Excel / CSV</strong></div>'
+    + '<div class="hint" style="margin-top:8px;">.xlsx / .csv，最大 50MB · 建议先用 20-200 行样本，不要一上来全量。</div>';
+}
+
+function resetCreateWizard() {
+  if (window.__pollTimer) clearInterval(window.__pollTimer);
+  window.__job = null;
+  window.__clarified = null;
+  window.__fieldMapping = null;
+  window.__runId = null;
+  window.__pollTimer = null;
+  window.__promptValidated = false;
+  window.__lastAnalysis = null;
+  window.__lastResultPayload = null;
+  window.__pendingRunPlan = null;
+  window.__step2Mode = 'basic';
+  window.__columns = [];
+  window.__columnStats = {};
+  window.__customRunModels = [];
+  window.__lastSupplementNote = '';
+  resetUploadArea();
+  ['dataset-desc', 'user-output-expect', 'api-key', 'run-batch-api-key', 'prompt-template', 'prompt-revision-instruction',
+   'custom-clarify-model-id', 'run-custom-model-id', 'run-custom-model-name'].forEach(function(id) { setValue(id, ''); });
+  ['clarify-summary', 'field-mapping-body', 'output-spec', 'clarify-questions', 'clarify-warnings',
+   'validate-status', 'prepare-status', 'strategy-preview', 'strategy-apply-status', 'result-analysis-body'].forEach(function(id) { setHtml(id, ''); });
+  ['after-upload', 'clarify-model-used', 'validate-status', 'prepare-status', 'run-progress', 'run-plan-panel'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  const next = document.getElementById('btn-next-1');
+  if (next) { next.style.display = 'none'; next.disabled = false; next.textContent = '下一步：生成验证方案 →'; }
+  const rubricHint = document.getElementById('rubric-upload-hint');
+  if (rubricHint) rubricHint.textContent = '澄清与补充说明时会将该文档一并交给大模型。';
+  const rubricLabel = document.getElementById('rubric-upload-label');
+  if (rubricLabel) rubricLabel.textContent = '';
+  const rubricArea = document.getElementById('rubric-upload-area');
+  if (rubricArea) rubricArea.classList.remove('has-file');
+  const rubricDeleteBtn = document.getElementById('rubric-delete-btn');
+  if (rubricDeleteBtn) rubricDeleteBtn.style.display = 'none';
+  const toStep3 = document.getElementById('btn-to-step3');
+  if (toStep3) toStep3.disabled = true;
+  const vbtn = document.getElementById('btn-validate-prompt');
+  if (vbtn) { vbtn.disabled = true; vbtn.textContent = '先试跑 1 行'; }
+  const stable = document.getElementById('run-stability-check');
+  if (stable) stable.checked = false;
+  setValue('doubao-thinking-mode', 'disabled');
+  setValue('doubao-thinking-budget', '0');
+  const strategy = document.getElementById('strategy-enabled');
+  if (strategy) strategy.checked = false;
+  setStep2Mode('basic');
+  ['st-json', 'st-one-shot', 'st-few-shot', 'st-cot', 'st-multi', 'st-repeat', 'st-conf'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.checked = false;
+  });
+  setValue('st-repeat-n', '2');
+  setValue('st-conf-th', '0.8');
+  toggleStrategyPanel();
+  clearRunPlan();
+  setRunningUi(false);
+  if (typeof renderCustomRunModelsList === 'function') renderCustomRunModelsList();
+  if (typeof renderVendorApiKeys === 'function') renderVendorApiKeys();
+  goStep(1);
+}
+
+function startNewTask() {
+  resetCreateWizard();
+  showPage('create', 1);
+}
+
+function colSelectOptions(selected, allowEmpty) {
+  const total = (window.__job && window.__job.data_rows) || 0;
+  const stats = window.__columnStats || {};
+  let h = allowEmpty ? '<option value="">— 不需要 —</option>' : '<option value="">— 请选择 —</option>';
+  (window.__columns || []).forEach(function(c) {
+    const sel = (c === selected) ? ' selected' : '';
+    const n = stats[c];
+    const suffix = (n != null && total) ? (' (' + n + '/' + total + '行有值)') : '';
+    h += '<option value="' + esc(c) + '"' + sel + '>' + esc(c) + esc(suffix) + '</option>';
+  });
+  return h;
+}
+
+function stepperGo(n) {
+  if (n === 2 && !window.__clarified) { alert('请先完成第 1 步「生成验证方案」'); return; }
+  if (n === 3 && (!window.__job || !window.__job.prepared_path)) {
+    if (!window.__job || !window.__job.job_id) { alert('请先上传数据'); return; }
+    if (!window.__job.prepared_path) { alert('请先在第 2 步点击「确认方案，准备试跑」'); return; }
+  }
+  goStep(n);
+  if (n === 3) renderVendorApiKeys();
+}
+
+function getBatchApiKey() {
+  const k = (document.getElementById('run-batch-api-key') || {}).value || '';
+  return k.trim() || ((document.getElementById('api-key') || {}).value || '').trim();
+}
+
+function buildModelVendorMap() {
+  const cat = window.__modelsCatalog;
+  const m = {};
+  if (!cat || !cat.by_vendor) return m;
+  Object.keys(cat.by_vendor).forEach(function(vid) {
+    (cat.by_vendor[vid] || []).forEach(function(item) {
+      m[item.key] = vid;
+    });
+  });
+  return m;
+}
+
+function getSelectedVendors() {
+  const map = window.__modelVendorMap || buildModelVendorMap();
+  const vendors = [];
+  function add(v) {
+    if (v && vendors.indexOf(v) < 0) vendors.push(v);
+  }
+  document.querySelectorAll('.model-item.checked').forEach(function(el) {
+    const key = el.getAttribute('data-model-key');
+    add(map[key]);
+  });
+  (window.__customRunModels || []).forEach(function(cm) {
+    add(cm.vendor || 'google');
+  });
+  return vendors;
+}
+
+function collectVendorApiKeys() {
+  const keys = {};
+  document.querySelectorAll('[data-vendor-api-key]').forEach(function(inp) {
+    const vid = inp.getAttribute('data-vendor-api-key');
+    const k = (inp.value || '').trim();
+    if (vid && k) keys[vid] = k;
+  });
+  return keys;
+}
+
+function getRunApiPayload() {
+  return {
+    api_keys: collectVendorApiKeys(),
+    api_key: getBatchApiKey()
+  };
+}
+
+async function renderVendorApiKeys() {
+  await loadModelsCatalog();
+  window.__modelVendorMap = buildModelVendorMap();
+  const container = document.getElementById('vendor-api-keys');
+  if (!container) return;
+  const vendors = getSelectedVendors();
+  const cat = window.__modelsCatalog;
+  if (!vendors.length) {
+    container.innerHTML = '<span style="font-size:12px;color:#b2bec3;">请先选择至少一个模型</span>';
+    return;
+  }
+  const clarifyKey = ((document.getElementById('api-key') || {}).value || '').trim();
+  const clarifyVendor = (document.getElementById('clarify-vendor') || {}).value || '';
+  const saved = window.__vendorApiKeysSaved || {};
+  container.innerHTML = vendors.map(function(vid) {
+    const v = (cat && cat.vendors && cat.vendors[vid]) || { name: vid, key_hint: '' };
+    let val = saved[vid] || '';
+    if (!val && vid === clarifyVendor && clarifyKey) val = clarifyKey;
+    return '<div class="form-group" style="margin:0;">'
+      + '<label style="font-size:13px;">' + esc(v.name) + '</label>'
+      + '<input type="password" data-vendor-api-key="' + esc(vid) + '" autocomplete="off" '
+      + 'placeholder="' + esc(v.key_hint || 'API Key') + '" value="' + esc(val) + '" '
+      + 'oninput="window.__vendorApiKeysSaved=window.__vendorApiKeysSaved||{};window.__vendorApiKeysSaved[\'' + esc(vid) + '\']=this.value;">'
+      + '</div>';
+  }).join('');
+}
+
+async function loadModelsCatalog() {
+  if (window.__modelsCatalog) return window.__modelsCatalog;
+  const r = await fetch('/api/models');
+  window.__modelsCatalog = await r.json();
+  window.__modelVendorMap = buildModelVendorMap();
+  const sel = document.getElementById('clarify-vendor');
+  if (!sel) return window.__modelsCatalog;
+  sel.innerHTML = Object.keys(window.__modelsCatalog.vendors).map(function(vid) {
+    const v = window.__modelsCatalog.vendors[vid];
+    return '<option value="' + esc(vid) + '">' + esc(v.name) + '</option>';
+  }).join('');
+  sel.onchange = syncClarifyModels;
+  syncClarifyModels();
+  return window.__modelsCatalog;
+}
+
+function syncClarifyModels() {
+  const cat = window.__modelsCatalog;
+  const vid = (document.getElementById('clarify-vendor') || {}).value;
+  const msel = document.getElementById('clarify-model-key');
+  if (!cat || !msel || !vid) return;
+  const list = cat.by_vendor[vid] || [];
+  msel.innerHTML = list.map(function(m) {
+    return '<option value="' + esc(m.key) + '">' + esc(m.name) + '</option>';
+  }).join('') + '<option value="__custom__">自定义（手动输入 ID）</option>';
+  msel.onchange = function() {
+    const wrap = document.getElementById('clarify-custom-model-wrap');
+    if (wrap) wrap.style.display = msel.value === '__custom__' ? 'block' : 'none';
+  };
+  msel.onchange();
+  populateRunCustomVendor();
+  const hint = document.getElementById('api-key-hint');
+  const v = cat.vendors[vid];
+  if (hint && v) hint.textContent = '请填写 ' + v.name + ' 的 Key（' + v.key_hint + '）';
+  const keyInput = document.getElementById('api-key');
+  if (keyInput && v) keyInput.placeholder = v.key_hint;
+}
+
+async function renderClarifyPanel(data) {
+  await loadEvaluationModes();
+  loadEvaluationPlugins();
+  const c = data.clarified || {};
+  window.__clarified = c;
+  window.__columns = data.columns || (window.__job && window.__job.columns) || [];
+  window.__fieldMapping = c.field_mapping || {};
+
+  const used = document.getElementById('clarify-model-used');
+  if (used && data.model_used) {
+    used.style.display = 'block';
+    used.innerHTML = '本次澄清调用：<strong>' + esc(data.model_used.vendor_name) + ' · ' + esc(data.model_used.model_name) + '</strong>';
+  }
+
+  const warn = document.getElementById('clarify-warnings');
+  const warnings = c.mapping_warnings || [];
+  if (warn) {
+    warn.innerHTML = warnings.length
+      ? '<div class="info-box orange">' + warnings.map(function(w) { return esc(w); }).join('<br>') + '</div>'
+      : '';
+  }
+
+  const sum = document.getElementById('clarify-summary');
+  if (sum) {
+    const fm0 = c.field_mapping || {};
+    const sas = c.student_answer_source || {};
+    const primaryCol = fm0.primary_content || sas.column || '';
+    const taskTypeValue = (c.task_type || (window.__job && window.__job.task_type) || deriveTaskTypeFromContext() || '').trim();
+    c.task_type = taskTypeValue;
+    let sasLine = '—';
+    if (primaryCol) {
+      sasLine = '<strong>' + esc(primaryCol) + '</strong>';
+      if (sas.form) sasLine += ' · ' + esc(sas.form);
+      if (sas.why) sasLine += '<br><span style="color:#636e72;font-size:12px;">' + esc(sas.why) + '</span>';
+    }
+    let sumHtml = '<table class="summary-table">'
+      + '<tr><td class="sk" style="color:#d63031;font-weight:700;">核心输入</td><td class="sv">' + sasLine + '</td></tr>'
+      + '<tr><td class="sk">理解</td><td class="sv">' + esc(c.understood_task || '') + '</td></tr>'
+      + '<tr><td class="sk">任务名称</td><td class="sv"><input type="text" id="edit-task-type" value="' + esc(taskTypeValue) + '" style="width:100%"><div id="task-type-note" class="hint" style="margin-top:4px;">默认采用 AI 理解的任务名称；一般不用改。</div></td></tr>'
+      + '<tr><td class="sk">数据</td><td class="sv">' + esc((window.__job && window.__job.filename) || '') + ' · ' + (data.data_rows || '') + ' 行</td></tr></table>';
+    if (c.interpretation_summary) {
+      sumHtml += '<div class="info-box ok" style="margin-top:12px;"><strong>AI 最终解读</strong><br>' + esc(c.interpretation_summary) + '</div>';
+      if (c.interpretation_checklist && c.interpretation_checklist.length) {
+        sumHtml += '<ul style="margin:8px 0 0 18px;font-size:13px;">' + c.interpretation_checklist.map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('') + '</ul>';
+      }
+    }
+    sum.innerHTML = sumHtml;
+  }
+
+  renderFieldMappingTable(c.field_mapping || {}, c.annotation_column_candidates || []);
+  renderHarnessContractPreview();
+
+  const out = document.getElementById('output-spec');
+  if (out) {
+    out.innerHTML = '<table class="summary-table">'
+      + '<tr><td class="sk">输出格式</td><td class="sv"><input type="text" id="edit-output-format" value="' + esc(c.output_format || '') + '" style="width:100%"></td></tr>'
+      + '<tr><td class="sk">说明</td><td class="sv"><textarea id="edit-output-desc" rows="3" style="width:100%">' + esc(c.output_description || '') + '</textarea></td></tr>'
+      + '<tr><td class="sk">结构示例</td><td class="sv"><pre style="white-space:pre-wrap;font-size:12px;background:#f5f5f5;padding:8px;border-radius:6px;">' + esc(c.output_schema || '') + '</pre></td></tr>'
+      + '</table><div id="output-spec-note" class="hint" style="margin-top:6px;">这里是 AI 已理解的输出定义，基础模式无需手动填写。</div>';
+  }
+  applyStep2ModeToDynamicSections();
+
+  const pt = document.getElementById('prompt-template');
+  if (pt) pt.value = c.suggested_prompt || '';
+
+  const qEl = document.getElementById('clarify-questions');
+  const qs = c.clarifying_questions || [];
+  if (qEl) {
+    if (!qs.length) {
+      qEl.innerHTML = '<div class="info-box info">当前没有待澄清问题。可直接在下方「告诉 AI 你希望如何修改 Prompt」中输入要求，再点「提交补充，AI 重新理解」。</div>';
+    } else {
+      qEl.innerHTML = '<h4 style="font-size:14px;margin-bottom:8px;">补充说明（填写后点下方按钮，由 AI 重新理解并更新配置）</h4>'
+        + qs.map(function(q, i) {
+          return '<div class="qa" style="margin-bottom:12px;"><label>' + esc(q) + '</label>'
+            + '<input type="text" class="qa-answer" data-qi="' + i + '" style="width:100%;margin-top:6px;padding:8px;"></div>';
+        }).join('');
+    }
+  }
+}
+
+function collectFieldMappingFromUi() {
+  const primary = (document.getElementById('map-primary') || {}).value || '';
+  const ref = (document.getElementById('map-reference') || {}).value || '';
+  const stem = (document.getElementById('map-stem') || {}).value || '';
+  const rubric = (document.getElementById('map-rubric') || {}).value || '';
+  const gts = [];
+  document.querySelectorAll('.map-gt-chk:checked').forEach(function(chk) { gts.push(chk.value); });
+  const primaryGt = (document.getElementById('map-primary-gt') || {}).value || gts[0] || '';
+  const ctx = [];
+  if (ref) ctx.push(ref);
+  if (stem) ctx.push(stem);
+  if (rubric) ctx.push(rubric);
+  const evMode = (document.getElementById('map-evaluation-mode') || {}).value || 'auto';
+  const obj = {
+    primary_content: primary,
+    reference_column: ref || null,
+    stem_column: stem || null,
+    rubric_column: rubric || null,
+    context: ctx,
+    ground_truths: gts,
+    primary_ground_truth: primaryGt || null,
+    ground_truth: primaryGt || null,
+    evaluation_mode: evMode,
+    custom_evaluation: collectCustomEvaluationFromUi()
+  };
+  const pkmRaw = ((document.getElementById('map-prediction-key-mapping') || {}).value || '').trim();
+  if (pkmRaw) {
+    try {
+      const parsed = JSON.parse(pkmRaw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        obj.prediction_key_mapping = parsed;
+      }
+    } catch (_) { /* ignore */ }
+  }
+  return obj;
+}
+
+function renderHarnessContractPreview() {
+  const box = document.getElementById('harness-contract-preview');
+  if (!box) return;
+  const fm = collectFieldMappingFromUi();
+  const gts = fm.ground_truths || [];
+  const core = fm.primary_content || '（未选择）';
+  const refs = [fm.reference_column, fm.stem_column, fm.rubric_column].filter(Boolean);
+  const evalMode = fm.evaluation_mode || 'auto';
+  box.style.display = 'block';
+  box.innerHTML = '<strong>你这次实验会这样跑</strong><br>'
+    + '① 模型先读取：<code>' + esc(core) + '</code>'
+    + (refs.length ? '（并参考 ' + refs.map(function(c){ return '<code>' + esc(c) + '</code>'; }).join('、') + '）' : '')
+    + '<br>② 模型按 Prompt 输出：你在下方看到的 JSON/标签格式'
+    + '<br>③ 平台判断结果：'
+    + (gts.length
+      ? '和人工标注列 ' + gts.map(function(c){ return '<code>' + esc(c) + '</code>'; }).join('、') + ' 做对比'
+      : '先看多模型一致率/分歧样本（暂无人工标注）')
+    + '<br><span class="hint">当前汇总方式：<code>' + esc(evalMode) + '</code></span>';
+}
+
+function collectCustomEvaluationFromUi() {
+  const mode = (document.getElementById('map-evaluation-mode') || {}).value;
+  if (mode !== 'custom') return null;
+  const plugin = (document.getElementById('map-custom-plugin') || {}).value || '';
+  let params = {};
+  const raw = ((document.getElementById('map-custom-params') || {}).value || '').trim();
+  if (raw) {
+    try { params = JSON.parse(raw); } catch (_) { params = {_parse_error: true}; }
+  }
+  return { plugin: plugin, params: params };
+}
+
+function toggleCustomEvalPanel() {
+  const mode = (document.getElementById('map-evaluation-mode') || {}).value;
+  const panel = document.getElementById('custom-eval-panel');
+  if (panel) panel.style.display = mode === 'custom' ? 'block' : 'none';
+}
+
+function applyCustomPluginPreset() {
+  const sel = document.getElementById('map-custom-plugin');
+  const hint = document.getElementById('map-custom-plugin-hint');
+  const paramsEl = document.getElementById('map-custom-params');
+  if (!sel || !window.__evaluationPlugins) return;
+  const p = window.__evaluationPlugins.find(function(x) { return x.id === sel.value; });
+  if (hint && p) {
+    hint.textContent = p.description || '';
+  }
+  if (paramsEl && p && p.params_schema) {
+    const defaults = {};
+    Object.keys(p.params_schema).forEach(function(k) {
+      const s = p.params_schema[k];
+      if (s && s.default !== undefined) defaults[k] = s.default;
+    });
+    if (Object.keys(defaults).length && !paramsEl.value.trim()) {
+      paramsEl.value = JSON.stringify(defaults, null, 2);
+    }
+  }
+}
+
+function customParamsText(fm) {
+  fm = fm || {};
+  const ce = fm.custom_evaluation || (fm.evaluation_profile && fm.evaluation_profile.custom_evaluation);
+  if (!ce || !ce.params) return '';
+  try { return JSON.stringify(ce.params, null, 2); } catch (_) { return ''; }
+}
+
+function predictionKeyMappingText(fm) {
+  fm = fm || {};
+  const pkm = fm.prediction_key_mapping;
+  if (!pkm || typeof pkm !== 'object' || Array.isArray(pkm)) return '';
+  try { return JSON.stringify(pkm, null, 2); } catch (_) { return ''; }
+}
+
+function customPluginOptions(fm) {
+  const ce = (fm && fm.custom_evaluation) || {};
+  const cur = ce.plugin || ce.preset || 'points_all';
+  const list = window.__evaluationPlugins || [];
+  if (!list.length) return '<option value="points_all">points_all（默认）</option>';
+  return list.map(function(p) {
+    return '<option value="' + esc(p.id) + '"' + (p.id === cur ? ' selected' : '') + '>' + esc(p.label || p.id) + '</option>';
+  }).join('');
+}
+
+async function loadEvaluationPlugins() {
+  if (window.__evaluationPlugins) return;
+  try {
+    const r = await fetch('/api/evaluation_plugins');
+    const j = await r.json();
+    window.__evaluationPlugins = j.plugins || [];
+  } catch (_) {
+    window.__evaluationPlugins = [];
+  }
+}
+
+function refreshComparabilityHint() {
+  const el = document.getElementById('comparability-hint');
+  if (!el) return;
+  const fm = collectFieldMappingFromUi();
+  const gts = fm.ground_truths || [];
+  const primary = fm.primary_ground_truth || '';
+  const stats = window.__columnStats || {};
+  const total = (window.__job && window.__job.data_rows) || 0;
+  if (!gts.length) {
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = 'block';
+  el.className = 'info-box info';
+  const lines = gts.map(function(c) {
+    const n = stats[c];
+    const suffix = (n != null && total) ? ('（' + n + '/' + total + ' 行有值）') : '';
+    const star = (c === primary) ? ' <strong>主</strong>' : '';
+    return '<code>' + esc(c) + '</code>' + star + suffix;
+  }).join('； ');
+  const evMode = fm.evaluation_mode || 'auto';
+  const evLabels = {
+    auto: '自动：根据列名推断汇总规则',
+    single: '行正确 = 仅主标注列一致',
+    multi_point_strict: '整行全对：全部采分点（+总分）都对才算该行对',
+    multi_point_micro: '最小单位：按每个采分点计对（如 2/3），非整行全对',
+    multi_point_all: '（同整行）全部采分点列一致',
+    multi_point_and_total: '（同整行）采分点全对且总分一致',
+    all_columns: '行正确 = 已选全部标注列一致',
+    per_column_only: '行正确看主列；各列另有分列准确率',
+    custom: '行正确由自定义插件决定（见下方插件配置）'
+  };
+  let customLine = '';
+  if (evMode === 'custom') {
+    const ce = collectCustomEvaluationFromUi();
+    if (ce && ce.plugin) customLine = '<br>自定义插件：<code>' + esc(ce.plugin) + '</code>';
+  }
+  el.innerHTML = '<strong>比对约定</strong><br>已选人工标注列：' + lines
+    + '<br>评测方式：<code>' + esc(evMode) + '</code> — ' + esc(evLabels[evMode] || evMode) + customLine
+    + '<br>平台会自动逐列比对模型输出和人工标注；字段名对不上时可在高级设置里填映射。';
+}
+
+
+function toggleAdvancedMapping() {
+  const panel = document.getElementById('advanced-mapping-panel');
+  if (panel) panel.classList.toggle('open');
+}
+
+
+function renderFieldMappingTable(fm, candidates) {
+  fm = fm || {};
+  candidates = candidates || [];
+  const mapBody = document.getElementById('field-mapping-body');
+  if (!mapBody) return;
+  const ctx = fm.context || [];
+  const ref = fm.reference_column || (Array.isArray(ctx) ? (ctx[0] || '') : '') || '';
+  const stem = fm.stem_column || (Array.isArray(ctx) ? (ctx[1] || '') : '') || '';
+  const rubric = fm.rubric_column || (Array.isArray(ctx) ? (ctx[2] || '') : '') || '';
+  let gts = fm.ground_truths || [];
+  if (!gts.length && fm.ground_truth) gts = [fm.ground_truth];
+  const primaryGt = fm.primary_ground_truth || fm.ground_truth || gts[0] || '';
+  mapBody.innerHTML = ''
+    + '<div class="mapping-core-grid">'
+    + '<div class="mapping-panel"><label style="font-weight:700;">核心输入（主列）</label>'
+    + '<select id="map-primary" style="margin-top:8px;">' + colSelectOptions(fm.primary_content, false) + '</select>'
+    + '<div class="hint">本任务须交给模型判断的核心列（如学生作答、原题信息；教研相似题请再选「对比列」）。</div></div>'
+    + '<div class="mapping-panel"><label style="font-weight:700;">人工标注列</label>'
+    + '<div style="margin-top:8px;">' + renderGroundTruthCheckboxes(gts, candidates) + '</div>'
+    + '<div class="hint">平台会按这些列自动算正确率；多列会同时给分列结果。</div></div>'
+    + '</div>'
+    + '<div style="margin-top:14px;"><label style="font-weight:700;">主标注列（结果页主指标）</label>'
+    + '<select id="map-primary-gt" style="max-width:360px;margin-left:8px;">' + primaryGtSelectOptions(gts, primaryGt) + '</select></div>'
+    + '<button type="button" class="advanced-toggle" onclick="toggleAdvancedMapping()">高级设置：题干 / 规则 / 特殊比对</button>'
+    + '<div id="advanced-mapping-panel" class="advanced-panel">'
+    + '<table class="mapping-table"><tbody>'
+    + '<tr><td>标答</td><td><select id="map-reference">' + colSelectOptions(ref, true) + '</select></td></tr>'
+    + '<tr><td>题干</td><td><select id="map-stem">' + colSelectOptions(stem, true) + '</select></td></tr>'
+    + '<tr><td>参考 / 规则</td><td><select id="map-rubric">' + colSelectOptions(rubric, true) + '</select></td></tr>'
+    + '<tr><td>汇总方式</td><td><select id="map-evaluation-mode">' + evaluationModeOptions(fm.evaluation_mode || 'auto') + '</select>'
+    + '<div class="hint" style="margin-top:6px;">默认自动即可。只有特殊采分或插件时再改。</div>'
+    + '<div id="custom-eval-panel" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--c-border);border-radius:8px;background:#fff;">'
+    + '<div class="form-group" style="margin-bottom:8px;"><label>自定义插件</label>'
+    + '<select id="map-custom-plugin" onchange="applyCustomPluginPreset()">' + customPluginOptions(fm) + '</select>'
+    + '<div id="map-custom-plugin-hint" class="hint" style="margin-top:4px;"></div></div>'
+    + '<div class="form-group" style="margin-bottom:0;"><label>插件参数（JSON，可选）</label>'
+    + '<textarea id="map-custom-params" rows="4" style="width:100%;font-family:monospace;font-size:12px;" placeholder=\'{"min_ratio": 0.8}\'>' + esc(customParamsText(fm)) + '</textarea>'
+    + '</div></div></td></tr>'
+    + '<tr><td>模型键 → 标注列</td><td><textarea id="map-prediction-key-mapping" rows="4" style="width:100%;font-family:monospace;font-size:12px;" placeholder=\'{"biezi_ai_1": "biezi_1"}\'>' + esc(predictionKeyMappingText(fm)) + '</textarea>'
+    + '<div class="hint" style="margin-top:4px;">仅在模型 JSON 键名和表头不一致时填写。</div></td></tr>'
+    + '</tbody></table></div>';
+  document.querySelectorAll('.map-gt-chk').forEach(function(chk) {
+    chk.addEventListener('change', function() { syncPrimaryGtOptions(); refreshComparabilityHint(); });
+  });
+  const evSel = document.getElementById('map-evaluation-mode');
+  if (evSel) {
+    evSel.addEventListener('change', function() {
+      toggleCustomEvalPanel();
+      refreshComparabilityHint();
+    });
+  }
+  syncPrimaryGtOptions();
+  toggleCustomEvalPanel();
+  applyCustomPluginPreset();
+  refreshComparabilityHint();
+  applyStep2ModeToDynamicSections();
+}
+
+function defaultEvaluationModes() {
+  return [
+    { id: 'auto', label: '自动：≥2 采分点 → 整行全对+总分' },
+    { id: 'single', label: '单列：仅主标注列' },
+    { id: 'multi_point_strict', label: '多采分点·整行：全部采分点（+总分）都对才算对' },
+    { id: 'multi_point_micro', label: '多采分点·最小单位：按每个采分点计对（如 2/3）' },
+    { id: 'all_columns', label: '多列：全部标注列一致' },
+    { id: 'per_column_only', label: '分列统计（行正确看主列）' },
+    { id: 'multi_point_and_total', label: '（兼容）多采分点+总分' },
+    { id: 'multi_point_all', label: '（兼容）全部采分点一致' },
+    { id: 'custom', label: '完全自定义（插件）' }
+  ];
+}
+
+function evaluationModeOptions(selected) {
+  const modes = window.__evaluationModes && window.__evaluationModes.length
+    ? window.__evaluationModes
+    : defaultEvaluationModes();
+  return modes.map(function(m) {
+    return '<option value="' + esc(m.id) + '"' + (m.id === selected ? ' selected' : '') + '>' + esc(m.label) + '</option>';
+  }).join('');
+}
+
+async function loadEvaluationModes(force) {
+  if (window.__evaluationModes && !force) return window.__evaluationModes;
+  try {
+    const r = await fetch('/api/evaluation_modes');
+    const j = await r.json();
+    window.__evaluationModes = (j.modes && j.modes.length) ? j.modes : defaultEvaluationModes();
+  } catch (_) {
+    window.__evaluationModes = defaultEvaluationModes();
+  }
+  return window.__evaluationModes;
+}
+
+function renderGroundTruthCheckboxes(selectedGts, candidates) {
+  const cols = window.__columns || [];
+  const stats = window.__columnStats || {};
+  const total = (window.__job && window.__job.data_rows) || 0;
+  if (!cols.length) return '<span class="hint">无列名</span>';
+  let h = '<div style="max-height:220px;overflow:auto;border:1px solid var(--c-border);padding:10px;border-radius:8px;font-size:13px;">';
+  cols.forEach(function(c) {
+    const checked = selectedGts.indexOf(c) >= 0 ? ' checked' : '';
+    const cand = candidates.indexOf(c) >= 0 ? ' <span style="color:var(--c-warn);font-size:11px;">疑似标注</span>' : '';
+    const n = stats[c];
+    const suffix = (n != null && total) ? (' (' + n + '/' + total + ')') : '';
+    h += '<label style="display:block;margin:5px 0;font-weight:400;cursor:pointer;">'
+      + '<input type="checkbox" class="map-gt-chk" value="' + esc(c) + '"' + checked + '> '
+      + esc(c) + esc(suffix) + cand + '</label>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function primaryGtSelectOptions(selectedGts, primaryGt) {
+  let h = '<option value="">— 请先勾选标注列 —</option>';
+  selectedGts.forEach(function(c) {
+    h += '<option value="' + esc(c) + '"' + (c === primaryGt ? ' selected' : '') + '>' + esc(c) + '</option>';
+  });
+  return h;
+}
+
+function syncPrimaryGtOptions() {
+  const gts = [];
+  document.querySelectorAll('.map-gt-chk:checked').forEach(function(chk) { gts.push(chk.value); });
+  const sel = document.getElementById('map-primary-gt');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = primaryGtSelectOptions(gts, gts.indexOf(prev) >= 0 ? prev : (gts[0] || ''));
+  refreshComparabilityHint();
+}
+
+async function submitSupplementClarify() {
+  if (!window.__job || !window.__job.job_id) { alert('请先完成第 1 步澄清'); return; }
+  const answers = {};
+  let hasQaAnswer = false;
+  document.querySelectorAll('.qa-answer').forEach(function(inp) {
+    const v = (inp.value || '').trim();
+    answers[inp.dataset.qi] = v;
+    if (v) hasQaAnswer = true;
+  });
+  const promptRevisionInstruction = ((document.getElementById('prompt-revision-instruction') || {}).value || '').trim();
+  if (!hasQaAnswer && !promptRevisionInstruction) {
+    alert('请至少填写一条澄清答案，或填写「告诉 AI 你希望如何修改 Prompt」。');
+    return;
+  }
+  const btn = document.getElementById('btn-supplement-clarify');
+  const st = document.getElementById('supplement-clarify-status');
+  const modelKey = (document.getElementById('clarify-model-key') || {}).value || 'gemini-3.5-flash';
+  const apiKey = (document.getElementById('api-key') || {}).value || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 重新理解中…'; }
+  if (st) st.textContent = '';
+  try {
+    const res = await fetch('/api/clarify_followup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({
+        job_id: window.__job.job_id,
+        user_answers: answers,
+        prompt_revision_instruction: promptRevisionInstruction,
+        field_mapping: collectFieldMappingFromUi(),
+        prompt_template: (document.getElementById('prompt-template') || {}).value || '',
+        task_description: (document.getElementById('dataset-desc') || {}).value || '',
+        user_output_expectation: (document.getElementById('user-output-expect') || {}).value || ''
+      }, buildClarifyModelPayload()))
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (data.column_stats) window.__columnStats = data.column_stats;
+    renderClarifyPanel(data);
+    window.__promptValidated = false;
+    if (st) st.textContent = '已完成配置更新与 AI 最终解读，请核对列映射与 Prompt 后点击「确认方案，准备试跑」。';
+  } catch (e) {
+    if (st) st.textContent = '';
+    alert('补充澄清失败：' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '提交补充，AI 重新理解'; }
+  }
+}
+
+
+function buildClarifyModelPayload() {
+  const modelKey = (document.getElementById('clarify-model-key') || {}).value || window.__jobClarifyModelKey || 'gemini-3.5-flash';
+  const payload = {
+    model_key: modelKey,
+    api_key: (document.getElementById('api-key') || {}).value || ''
+  };
+  if (modelKey === '__custom__') {
+    payload.custom_vendor = (document.getElementById('clarify-vendor') || {}).value;
+    payload.custom_model_id = ((document.getElementById('custom-clarify-model-id') || {}).value || '').trim();
+  }
+  return payload;
+}
+
+async function uploadRubricFile(file) {
+  if (!window.__job || !window.__job.job_id) { alert('请先上传数据文件'); return; }
+  const fd = new FormData();
+  fd.append('job_id', window.__job.job_id);
+  fd.append('file', file);
+  const hint = document.getElementById('rubric-upload-hint');
+  const label = document.getElementById('rubric-upload-label');
+  if (hint) hint.textContent = '上传中…';
+  try {
+    const res = await fetch('/api/upload_rubric', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    window.__job.rubric_text = true;
+    window.__job.rubric_filename = data.rubric_filename || file.name;
+    if (label) label.textContent = '已上传：' + (data.rubric_filename || file.name) + '（' + data.rubric_chars + ' 字）';
+    const area = document.getElementById('rubric-upload-area');
+    if (area) area.classList.add('has-file');
+    const delBtn = document.getElementById('rubric-delete-btn');
+    if (delBtn) delBtn.style.display = 'inline-block';
+    if (hint) hint.textContent = '澄清与补充说明时会将该评分标准一并交给大模型。';
+  } catch (e) {
+    if (hint) hint.textContent = '';
+    alert('评分标准上传失败：' + (e.message || e));
+  }
+}
+
+async function deleteRubricFile() {
+  if (!window.__job || !window.__job.job_id) return;
+  const hint = document.getElementById('rubric-upload-hint');
+  const label = document.getElementById('rubric-upload-label');
+  const area = document.getElementById('rubric-upload-area');
+  const delBtn = document.getElementById('rubric-delete-btn');
+  if (hint) hint.textContent = '删除中…';
+  try {
+    const res = await fetch('/api/delete_rubric', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: window.__job.job_id })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    window.__job.rubric_text = '';
+    window.__job.rubric_filename = '';
+    if (label) label.textContent = '';
+    if (area) area.classList.remove('has-file');
+    if (delBtn) delBtn.style.display = 'none';
+    if (hint) hint.textContent = '澄清与补充说明时会将该文档一并交给大模型。';
+  } catch (e) {
+    if (hint) hint.textContent = '';
+    alert('删除评分标准失败：' + (e.message || e));
+  }
+}
+
+/* ───── 页面 / 步骤切换 ───── */
+function showPage(name, createStep) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name)?.classList.add('active');
+  document.querySelectorAll('.sidebar .nav-item').forEach(n => n.classList.remove('active'));
+  const t = { list:'工作验证台', create:'验证一个工作', result:'自动化建议报告' };
+  document.getElementById('page-title').textContent = t[name] || '';
+  const m = { list:0, create:1, result:2 };
+  document.querySelectorAll('.sidebar .nav-item')[m[name]]?.classList.add('active');
+  if (name === 'create') goStep(createStep || 1);
+  if (name === 'list') loadTaskRegistry();
+}
+
+function rerunFromStep2() {
+  restoreStateFromLastResult();
+  showPage('create', 2);
+  refreshComparabilityHint();
+  if (typeof renderVendorApiKeys === 'function') renderVendorApiKeys();
+}
+
+function restoreStateFromLastResult() {
+  const d = window.__lastResultPayload || {};
+  if (!d.run_id) return;
+  window.__runId = d.run_id;
+  window.__job = Object.assign({}, window.__job || {}, {
+    job_id: d.job_id || (window.__job && window.__job.job_id),
+    filename: d.filename || (window.__job && window.__job.filename),
+    task_type: d.task_type || (window.__job && window.__job.task_type),
+    data_rows: d.data_rows || d.total_rows || (window.__job && window.__job.data_rows),
+    columns: d.columns || window.__columns || [],
+    column_stats: d.column_stats || window.__columnStats || {},
+    prepared_path: d.prepared_path || true
+  });
+  window.__columns = d.columns || window.__columns || [];
+  window.__columnStats = d.column_stats || window.__columnStats || {};
+  window.__fieldMapping = d.field_mapping || window.__fieldMapping || {};
+  window.__clarified = d.clarified || window.__clarified || {};
+  setValue('dataset-desc', d.task_description || '');
+  setValue('user-output-expect', d.user_output_expectation || '');
+  setValue('prompt-template', d.prompt_template || '');
+  setValue('prompt-revision-instruction', d.prompt_revision_instruction || '');
+  applyStrategiesToUi(d.strategies || {}, '');
+  if (window.__clarified && Object.keys(window.__clarified).length) {
+    if (d.task_type) window.__clarified.task_type = d.task_type;
+    window.__clarified.field_mapping = d.field_mapping || window.__clarified.field_mapping || {};
+    window.__clarified.suggested_prompt = d.prompt_template || window.__clarified.suggested_prompt || '';
+    window.__clarified.output_format = d.output_format || window.__clarified.output_format || '';
+    window.__clarified.output_description = d.output_description || window.__clarified.output_description || '';
+    renderClarifyPanel({ clarified: window.__clarified, columns: window.__columns, data_rows: window.__job.data_rows });
+    const ua = d.user_answers || {};
+    document.querySelectorAll('.qa-answer').forEach(function(inp) {
+      const k = inp.dataset.qi;
+      if (ua[k] != null) inp.value = ua[k];
+    });
+  } else if (d.field_mapping) {
+    renderFieldMappingTable(d.field_mapping, []);
+    renderHarnessContractPreview();
+  }
+  const prepare = document.getElementById('prepare-status');
+  if (prepare) {
+    prepare.style.display = 'block';
+    prepare.className = 'info-box ok';
+    prepare.textContent = '已恢复上次验证方案，可直接调整后重新运行。';
+  }
+  const toStep3 = document.getElementById('btn-to-step3');
+  if (toStep3) toStep3.disabled = false;
+  const vbtn = document.getElementById('btn-validate-prompt');
+  if (vbtn) vbtn.disabled = false;
+}
+
+function goToStep3() {
+  if (!window.__job || !window.__job.prepared_path) {
+    alert('请先点击「确认方案，准备试跑」');
+    return;
+  }
+  if (!window.__promptValidated) {
+    if (!confirm('建议先点「先试跑 1 行」确认模型输出能解析、可与人工标注比对。\n仍直接进入第 3 步运行？')) return;
+  }
+  goStep(3);
+  renderVendorApiKeys();
+}
+
+function goStep(n) {
+  document.querySelectorAll('.step-content').forEach(s => s.style.display = 'none');
+  document.getElementById('step-' + n).style.display = 'block';
+  document.querySelectorAll('#stepper .step').forEach(s => {
+    const sn = parseInt(s.dataset.step);
+    s.classList.remove('active','done');
+    if (sn === n) s.classList.add('active');
+    else if (sn < n) s.classList.add('done');
+  });
+  document.querySelectorAll('#stepper .step-line').forEach((l,i) => l.classList.toggle('done', i < n-1));
+  if (n === 2) setStep2Mode(window.__step2Mode || 'basic');
+}
+
+/* ───── 工具函数 ───── */
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function getSensitiveStatus() {
+  const checked = document.querySelector('input[name="sensitive"]:checked');
+  return checked ? checked.value : 'no';
+}
+
+function fmtSec(sec) {
+  sec = Math.round(sec || 0);
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return m ? (m + 'm ' + s + 's') : (s + 's');
+}
+
+function fmtCny(v) {
+  if (v == null || isNaN(Number(v))) return '—';
+  const n = Number(v);
+  if (n === 0) return '¥0';
+  if (n < 0.01) return (n * 10).toFixed(4).replace(/0+$/, '').replace(/\.$/, '') + '毛';
+  return '¥' + n.toFixed(4);
+}
+
+/* ───── 上传 ───── */
+function renderColTags(columns) {
+  const el = document.getElementById('col-tags');
+  if (!el) return;
+  const show = columns.slice(0, 24);
+  el.innerHTML = show.map(c => '<span class="col-tag">' + esc(String(c)) + '</span>').join('');
+  if (columns.length > 24) el.innerHTML += '<span class="col-tag">…</span>';
+}
+
+function applyUploadPayload(data) {
+  window.__job = data;
+  window.__columns = data.columns || [];
+  window.__columnStats = data.column_stats || {};
+  document.getElementById('upload-filename').textContent = data.filename;
+  document.getElementById('upload-rows').textContent = data.data_rows;
+  document.getElementById('upload-cols').textContent = data.column_count || (data.columns && data.columns.length) || 0;
+  renderColTags(data.columns || []);
+  document.getElementById('after-upload').style.display = 'block';
+  document.getElementById('btn-next-1').style.display = 'block';
+  const sf = document.getElementById('summary-data-file');
+  if (sf) sf.textContent = data.filename + ' · ' + data.data_rows + ' 行';
+}
+
+async function handleFileSelect(file) {
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['xlsx', 'csv'].includes(ext)) { alert('请上传 .xlsx 或 .csv'); return; }
+  const area = document.getElementById('upload-area');
+  area.classList.add('uploading');
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    resetCreateWizard();
+    area.classList.add('has-file');
+    area.innerHTML = '<div style="font-size:14px;font-weight:600;color:#00b894;"> ' + esc(data.filename) + '</div><div style="font-size:13px;color:#636e72;margin-top:4px;">点击或拖拽更换</div>';
+    applyUploadPayload(data);
+  } catch (e) {
+    alert('上传失败：' + (e.message || e) + '\n\n请先运行 python demo/app.py，再访问 http://127.0.0.1:5050');
+  } finally { area.classList.remove('uploading'); }
+}
+
+function initUploadUi() {
+  const area = document.getElementById('upload-area');
+  const input = document.getElementById('file-input');
+  if (!area || !input) return;
+  area.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
+  input.addEventListener('change', function() { if (input.files[0]) handleFileSelect(input.files[0]); input.value = ''; });
+  area.addEventListener('dragover', function(e) { e.preventDefault(); area.style.borderColor = '#74b9ff'; });
+  area.addEventListener('dragleave', function() { area.style.borderColor = ''; });
+  area.addEventListener('drop', function(e) { e.preventDefault(); area.style.borderColor = ''; if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]); });
+}
+
+function initRubricUploadUi() {
+  const area = document.getElementById('rubric-upload-area');
+  const input = document.getElementById('rubric-file-input');
+  if (!area || !input) return;
+  area.addEventListener('click', function(e) { if (e.target !== input) input.click(); });
+  input.addEventListener('change', function() {
+    if (input.files && input.files[0]) uploadRubricFile(input.files[0]);
+    input.value = '';
+  });
+}
+
+/* ───── 收集表单参数 ───── */
+function getSelectedModels() {
+  const items = document.querySelectorAll('.model-item.checked');
+  return Array.from(items).map(el => el.dataset.modelKey).filter(Boolean);
+}
+
+function populateRunCustomVendor() {
+  const sel = document.getElementById('run-custom-vendor');
+  const cat = window.__modelsCatalog;
+  if (!sel || !cat) return;
+  sel.innerHTML = Object.keys(cat.vendors).map(function(vid) {
+    return '<option value="' + esc(vid) + '">' + esc(cat.vendors[vid].name) + '</option>';
+  }).join('');
+}
+
+function renderCustomRunModelsList() {
+  const el = document.getElementById('custom-models-list');
+  const list = window.__customRunModels || [];
+  if (!el) return;
+  if (!list.length) {
+    el.innerHTML = '<span style="font-size:12px;color:#b2bec3;">暂未添加自定义模型</span>';
+    return;
+  }
+  el.innerHTML = list.map(function(m, i) {
+    return '<span class="custom-model-chip"><strong>' + esc(m.name) + '</strong> '
+      + '<span style="color:#636e72;">' + esc(m.vendor) + ' / ' + esc(m.model_id) + '</span>'
+      + '<button type="button" onclick="removeCustomRunModel(' + i + ')" title="移除">×</button></span>';
+  }).join('');
+}
+
+function addCustomRunModel() {
+  const vendor = (document.getElementById('run-custom-vendor') || {}).value || 'google';
+  const modelId = ((document.getElementById('run-custom-model-id') || {}).value || '').trim();
+  const name = ((document.getElementById('run-custom-model-name') || {}).value || '').trim() || modelId;
+  if (!modelId) { alert('请填写 Model ID'); return; }
+  window.__customRunModels.push({ vendor: vendor, model_id: modelId, name: name });
+  document.getElementById('run-custom-model-id').value = '';
+  document.getElementById('run-custom-model-name').value = '';
+  renderCustomRunModelsList();
+  renderVendorApiKeys();
+}
+
+function removeCustomRunModel(idx) {
+  window.__customRunModels.splice(idx, 1);
+  renderCustomRunModelsList();
+  renderVendorApiKeys();
+}
+
+function getRunModelPayload() {
+  const models = getSelectedModels();
+  const custom_models = window.__customRunModels || [];
+  if (!models.length && !custom_models.length) return null;
+  return { models: models, custom_models: custom_models };
+}
+
+
+function toggleStrategyPanel() {
+  const on = document.getElementById('strategy-enabled').checked;
+  const panel = document.getElementById('strategy-panel');
+  if (panel) panel.style.display = on ? 'block' : 'none';
+  ['st-json', 'st-one-shot', 'st-few-shot', 'st-cot', 'st-multi', 'st-repeat', 'st-conf'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  });
+  toggleStrategySubOpts();
+  updateStrategyPreview();
+}
+
+async function updateStrategyPreview() {
+  const box = document.getElementById('strategy-preview');
+  if (!box) return;
+  const s = collectStrategies();
+  if (!strategyChangesPrompt(s)) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+  box.textContent = '加载预览…';
+  try {
+    const res = await fetch('/api/prompt_engineering_preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job && window.__job.job_id,
+        field_mapping: collectFieldMappingFromUi(),
+        strategies: s
+      })
+    });
+    const data = await res.json();
+    box.textContent = data.append || '（无追加内容）';
+  } catch (e) {
+    box.textContent = '预览失败：' + (e.message || e);
+  }
+}
+
+async function applySelectedStrategiesToPrompt() {
+  const status = document.getElementById('strategy-apply-status');
+  const pt = document.getElementById('prompt-template');
+  const s = collectStrategies();
+  if (!pt) return;
+  if (!strategyChangesPrompt(s)) {
+    if (status) status.textContent = '请先勾选至少一项会改 Prompt 的策略。';
+    return;
+  }
+  if (status) status.textContent = '应用中…';
+  try {
+    const res = await fetch('/api/prompt_engineering_preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job && window.__job.job_id,
+        field_mapping: collectFieldMappingFromUi(),
+        strategies: s
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '预览失败');
+    const append = (data.append || '').trim();
+    if (!append) {
+      if (status) status.textContent = '没有需要追加的内容。';
+      return;
+    }
+    if (pt.value.indexOf(append) < 0) {
+      pt.value = (pt.value || '').replace(/\s+$/, '') + '\n\n' + append + '\n';
+      window.__promptValidated = false;
+      const vbtn = document.getElementById('btn-validate-prompt');
+      if (vbtn) vbtn.disabled = !(window.__job && window.__job.prepared_path);
+      if (status) status.textContent = '已写入 Prompt，可继续调整或进入下一步。';
+    } else if (status) {
+      status.textContent = 'Prompt 已包含该策略内容。';
+    }
+  } catch (e) {
+    if (status) status.textContent = '应用失败：' + (e.message || e);
+  }
+}
+
+function toggleStrategySubOpts() {
+  const on = document.getElementById('strategy-enabled').checked;
+  const rep = document.getElementById('st-repeat');
+  const conf = document.getElementById('st-conf');
+  const rn = document.getElementById('st-repeat-n');
+  const cth = document.getElementById('st-conf-th');
+  if (rn) rn.disabled = !on || !(rep && rep.checked);
+  if (cth) cth.disabled = !on || !(conf && conf.checked);
+}
+
+function strategyChangesPrompt(s) {
+  s = s || collectStrategies();
+  return !!(s.enabled && (s.json_output || s.one_shot || s.few_shot || s.chain_of_thought || s.confidence_filter));
+}
+
+function collectStrategies() {
+  const en = document.getElementById('strategy-enabled');
+  if (!en) return { enabled: false };
+  const enabled = en.checked;
+  return {
+    enabled: enabled,
+    prompt_engineering: enabled && document.getElementById('st-json').checked,
+    json_output: enabled && document.getElementById('st-json').checked,
+    one_shot: enabled && document.getElementById('st-one-shot').checked,
+    few_shot: enabled && document.getElementById('st-few-shot').checked,
+    chain_of_thought: enabled && document.getElementById('st-cot').checked,
+    multi_model: enabled && document.getElementById('st-multi').checked,
+    repeat_runs: enabled && document.getElementById('st-repeat').checked,
+    repeat_count: parseInt(document.getElementById('st-repeat-n').value, 10) || 2,
+    confidence_filter: enabled && document.getElementById('st-conf').checked,
+    confidence_threshold: parseFloat(document.getElementById('st-conf-th').value) || 0.8
+  };
+}
+
+function applyStrategiesToUi(s, promptRevision) {
+  if (!s) return;
+  const en = document.getElementById('strategy-enabled');
+  if (en) en.checked = !!s.enabled;
+  toggleStrategyPanel();
+  if (s.enabled) {
+    document.getElementById('st-json').checked = !!(s.json_output || s.prompt_engineering);
+    document.getElementById('st-one-shot').checked = !!s.one_shot;
+    document.getElementById('st-few-shot').checked = !!s.few_shot;
+    document.getElementById('st-cot').checked = !!s.chain_of_thought;
+    document.getElementById('st-multi').checked = !!s.multi_model;
+    document.getElementById('st-repeat').checked = !!s.repeat_runs;
+    document.getElementById('st-repeat-n').value = s.repeat_count || 2;
+    document.getElementById('st-conf').checked = !!s.confidence_filter;
+    document.getElementById('st-conf-th').value = s.confidence_threshold != null ? s.confidence_threshold : 0.8;
+    toggleStrategySubOpts();
+    updateStrategyPreview();
+  }
+  if (promptRevision) {
+    const pt = document.getElementById('prompt-template');
+    if (pt) pt.value = promptRevision;
+  }
+}
+
+function buildRunPayload(extra) {
+  const mp = getRunModelPayload();
+  if (!mp) return null;
+  const apiPayload = getRunApiPayload();
+  const taskDesc = (document.getElementById('dataset-desc') || {}).value || '';
+  const payload = Object.assign({
+    job_id: window.__job.job_id,
+    task_description: taskDesc,
+    api_key: apiPayload.api_key,
+    api_keys: apiPayload.api_keys,
+    models: mp.models,
+    custom_models: mp.custom_models,
+    field_mapping: collectFieldMappingFromUi(),
+    prompt_template: (document.getElementById('prompt-template') || {}).value || '',
+    strategies: collectStrategies(),
+    concurrency: parseInt(document.getElementById('run-concurrency').value, 10) || 10,
+    stability_check: !!((document.getElementById('run-stability-check') || {}).checked),
+    doubao_thinking: (document.getElementById('doubao-thinking-mode') || {}).value || 'disabled',
+    doubao_thinking_budget_tokens: parseInt((document.getElementById('doubao-thinking-budget') || {}).value, 10) || 0
+  }, extra || {});
+  return payload;
+}
+
+window.__pendingRunPlan = null;
+
+function highlightRunPlanButtons() {
+  const plan = window.__pendingRunPlan;
+  document.querySelectorAll('.run-opt').forEach(function(b) { b.classList.remove('selected'); });
+  if (!plan) return;
+  document.querySelectorAll('.run-opt').forEach(function(btn) {
+    const oc = btn.getAttribute('onclick') || '';
+    if (plan.mode === 'unit' && oc.indexOf("selectRunPlan('unit', " + plan.value + ")") >= 0) btn.classList.add('selected');
+    if (plan.mode === 'percent' && oc.indexOf("selectRunPlan('percent', " + plan.value + ")") >= 0) btn.classList.add('selected');
+  });
+}
+
+function selectRunPlan(mode, value) {
+  window.__pendingRunPlan = { mode: mode, value: value };
+  const panel = document.getElementById('run-plan-panel');
+  const summary = document.getElementById('run-plan-summary');
+  if (panel) panel.style.display = 'block';
+  let label = '';
+  if (mode === 'unit') label = '小样本试跑：固定 ' + value + ' 行';
+  else label = value >= 100 ? '全量验证' : '抽样验证：约 ' + value + '% 行';
+  if (summary) {
+    let gate = '';
+    const last = window.__lastResultPayload || {};
+    const sampleGate = last.sample_gate || {};
+    if (mode === 'percent' && value >= 100) {
+      if (!last.run_id) gate = ' 建议先跑「小样本试跑 5 行」，确认输出能解析后再全量。';
+      else if (sampleGate.ready_for_batch === false) gate = ' 上次小样本检查未通过：' + (sampleGate.blockers || []).join('；');
+      else if (sampleGate.ready_for_batch === true) gate = ' 上次小样本检查通过，可进入全量。';
+    }
+    summary.textContent = label + '。点击下方「确认并开始实验」后才会发起请求。' + gate;
+  }
+  highlightRunPlanButtons();
+}
+
+function selectRunPlanCustom() {
+  const v = prompt('输入 1–100 为抽样比例；大于 100 的整数表示固定行数', '20');
+  if (v == null) return;
+  const n = parseInt(v, 10);
+  if (!n || n < 1) { alert('请输入正整数'); return; }
+  if (n > 100) selectRunPlan('unit', n);
+  else selectRunPlan('percent', n);
+}
+
+function clearRunPlan() {
+  window.__pendingRunPlan = null;
+  const panel = document.getElementById('run-plan-panel');
+  if (panel) panel.style.display = 'none';
+  highlightRunPlanButtons();
+}
+
+async function confirmAndExecuteRun() {
+  const plan = window.__pendingRunPlan;
+  if (!plan) { alert('请先选择实验规模（小样本 / 抽样 / 全量）'); return; }
+  const last = window.__lastResultPayload || {};
+  const gate = last.sample_gate || {};
+  if (plan.mode === 'percent' && plan.value >= 100) {
+    if (!last.run_id) {
+      const ok = confirm('建议先跑 5 行小样本，确认接口、解析率和输出格式后再全量。仍要直接全量吗？');
+      if (!ok) return;
+    } else if (gate.ready_for_batch === false) {
+      const ok = confirm('上次小样本检查未通过：\n' + (gate.blockers || []).join('\n') + '\n仍要继续全量吗？');
+      if (!ok) return;
+    }
+  }
+  const panel = document.getElementById('run-plan-panel');
+  if (panel) panel.style.display = 'none';
+  window.__pendingRunPlan = null;
+  highlightRunPlanButtons();
+  if (plan.mode === 'unit') await runQuickUnit(plan.value);
+  else await startRun(plan.value);
+}
+
+async function startRun(percent) {
+  if (!window.__job || !window.__job.job_id) { alert('请先上传数据文件'); return; }
+  const payload = buildRunPayload({ sample_percent: percent });
+  if (!payload) { alert('请至少选一个模型'); return; }
+  if (!payload.task_description.trim()) { alert('请填写数据集说明'); return; }
+  setRunningUi(true);
+  try {
+    const res = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    window.__runId = data.run_id;
+    if (data.estimated_total_label) {
+      const eta = document.getElementById('progress-eta');
+      if (eta) eta.textContent = '预计总时长约 ' + data.estimated_total_label + '（运行中动态更新）';
+    }
+    startPolling(data.run_id);
+  } catch (e) {
+    alert('启动评测失败：' + (e.message || e));
+    setRunningUi(false);
+  }
+}
+
+function startRunCustom() {
+  const v = prompt('自定义抽样比例（1-100）', '20');
+  if (v == null) return;
+  const n = parseInt(v, 10);
+  if (!n || n < 1 || n > 100) { alert('请输入 1-100 的整数'); return; }
+  startRun(n);
+}
+
+async function runQuickUnit(rows) {
+  if (!window.__job || !window.__job.job_id) { alert('请先完成数据准备'); return; }
+  const payload = buildRunPayload({ rows: rows });
+  if (!payload) { alert('请至少选一个模型'); return; }
+  setRunningUi(true);
+  try {
+    const res = await fetch('/api/run_sample', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    window.__runId = data.run_id;
+    if (data.estimated_total_label) {
+      const eta = document.getElementById('progress-eta');
+      if (eta) eta.textContent = '预计总时长约 ' + data.estimated_total_label + '（运行中动态更新）';
+    }
+    startPolling(data.run_id);
+  } catch (e) {
+    alert('小样本试跑启动失败：' + (e.message || e));
+    setRunningUi(false);
+  }
+}
+
+function runQuickUnitCustom() {
+  const v = prompt('自定义试跑行数', '15');
+  if (v == null) return;
+  const n = parseInt(v, 10);
+  if (!n || n < 1) { alert('请输入正整数'); return; }
+  runQuickUnit(n);
+}
+
+async function fetchResultAnalysis() {
+  if (!window.__runId) { alert('无评测记录'); return; }
+  const btn = document.getElementById('btn-analyze-results');
+  const body = document.getElementById('result-analysis-body');
+  const apiPayload = getRunApiPayload();
+  if (btn) { btn.disabled = true; btn.textContent = '解读中…'; }
+  try {
+    const res = await fetch('/api/analyze_results', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_id: window.__runId, api_key: apiPayload.api_key, api_keys: apiPayload.api_keys })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    window.__lastAnalysis = data.analysis || {};
+    const a = window.__lastAnalysis;
+    let html = '';
+    if (a.verdict || a.next_action) {
+      html += '<div class="verdict-box">';
+      html += '<div class="verdict-title">' + esc(a.verdict || '结论') + '</div>';
+      if (a.verdict_reason) html += '<p style="font-size:13px;color:var(--c-muted);margin:6px 0 0;">' + esc(a.verdict_reason) + '</p>';
+      if (a.next_action) html += '<div class="verdict-action" style="margin-top:10px;">下一步：' + esc(a.next_action) + '</div>';
+      html += '</div>';
+    }
+    if (a.summary) html += '<p style="margin-top:12px;font-size:14px;">' + esc(a.summary) + '</p>';
+    if (a.findings && a.findings.length) {
+      html += '<p style="margin-top:12px;"><strong>要点</strong></p><ul style="margin-left:18px;">' + a.findings.slice(0, 5).map(function(f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>';
+    }
+    if (a.suggestions && a.suggestions.length) {
+      html += '<p style="margin-top:12px;"><strong>建议</strong></p><ul style="margin-left:18px;">';
+      a.suggestions.slice(0, 4).forEach(function(s) {
+        html += '<li><strong>' + esc(s.title || '') + '</strong>：' + esc(s.detail || '') + '</li>';
+      });
+      html += '</ul>';
+    }
+    const sr = a.strategy_recommendations || {};
+    const promptRelated = [];
+    if (sr.json_output || sr.prompt_engineering) promptRelated.push('JSON 输出格式');
+    if (sr.one_shot) promptRelated.push('One-shot');
+    if (sr.few_shot) promptRelated.push('Few-shot');
+    if (sr.chain_of_thought) promptRelated.push('逐步核对');
+    if (sr.confidence_filter) promptRelated.push('置信度');
+    if (promptRelated.length || a.prompt_revision) {
+      html += '<div class="info-box info" style="margin-top:12px;">可采纳到第 2 步：'
+        + (promptRelated.length ? esc(promptRelated.join('、')) : 'Prompt 模板')
+        + (a.prompt_revision ? '<br>包含可直接回填的 Prompt 模板。' : '')
+        + '</div>';
+    }
+    if (!html) html = '<div class="info-box info">已完成解读，但模型未返回结构化摘要；请查看建议或重新生成。</div>';
+    if (body) body.innerHTML = html;
+    const adopt = document.getElementById('btn-adopt-suggestions');
+    if (adopt) adopt.style.display = 'inline-block';
+  } catch (e) {
+    if (body) body.textContent = '解读失败：' + (e.message || e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '生成解读（大模型）'; }
+  }
+}
+
+function adoptSuggestions() {
+  const a = window.__lastAnalysis;
+  if (!a) return;
+  if (a.strategy_recommendations) applyStrategiesToUi(a.strategy_recommendations, a.prompt_revision || '');
+  else if (a.prompt_revision) {
+    const pt = document.getElementById('prompt-template');
+    if (pt) pt.value = a.prompt_revision;
+  }
+  window.__promptValidated = false;
+  rerunFromStep2();
+}
+
+function getMaxRows() { return null; }
+
+/* ───── 评测：启动 → 轮询 → 拿结果 ───── */
+function setRunningUi(running) {
+  document.querySelectorAll('.run-action-btn').forEach(function(b) { b.disabled = running; });
+  const confirmRun = document.getElementById('btn-confirm-run');
+  if (confirmRun) confirmRun.disabled = running;
+  const back = document.getElementById('btn-back-step2');
+  if (back) back.disabled = running;
+  const prog = document.getElementById('run-progress');
+  if (prog) prog.style.display = running ? 'block' : 'none';
+  const cancelBtn = document.getElementById('btn-cancel-run');
+  if (cancelBtn) cancelBtn.style.display = running ? 'inline-block' : 'none';
+  if (!running) {
+    const eta = document.getElementById('progress-eta');
+    if (eta) eta.textContent = '';
+  }
+}
+
+function formatDurationLabel(sec) {
+  if (sec == null || isNaN(sec)) return '—';
+  const s = Math.max(0, Math.round(sec));
+  if (s < 60) return s + ' 秒';
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  if (m < 60) return m + ' 分 ' + r + ' 秒';
+  const h = Math.floor(m / 60);
+  return h + ' 小时 ' + (m % 60) + ' 分';
+}
+
+async function cancelCurrentRun() {
+  const runId = window.__runId;
+  if (!runId) return;
+  if (!confirm('确定要中止本次评测吗？已完成的部分仍可导出。')) return;
+  const btn = document.getElementById('btn-cancel-run');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch('/api/cancel/' + runId, { method: 'POST' });
+    const data = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    const detail = document.getElementById('progress-detail');
+    if (detail) detail.textContent = '正在中止，等待进行中的请求结束…';
+  } catch (e) {
+    alert('中止失败：' + (e.message || e));
+    if (btn) btn.disabled = false;
+  }
+}
+
+function updateProgress(st) {
+  const pct = Math.round((st.progress || 0) * 100);
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  const model = st.current_model || '';
+  let detail = model
+    ? ('模型 ' + model + '：已完成 ' + (st.processed_in_model || 0) + ' / ' + (st.total_rows || '?') + ' 行')
+    : '准备中…';
+  if (st.cancel_requested && st.status === 'running') {
+    detail = '正在中止… ' + detail;
+  }
+  document.getElementById('progress-detail').textContent = detail;
+  const etaEl = document.getElementById('progress-eta');
+  if (etaEl) {
+    const elapsed = st.elapsed_label || formatDurationLabel(st.elapsed_sec);
+    const remain = st.estimated_remaining_label || formatDurationLabel(st.estimated_remaining_sec);
+    const total = st.estimated_total_label || formatDurationLabel(st.estimated_total_sec);
+    if (st.estimated_remaining_sec != null) {
+      etaEl.textContent = '已用 ' + elapsed + ' · 预计剩余 ' + remain + ' · 预计总时长 ' + total
+        + (st.concurrency ? (' · 并发 ' + st.concurrency) : '');
+    } else if (st.elapsed_sec > 0) {
+      etaEl.textContent = '已用 ' + elapsed + (st.concurrency ? (' · 并发 ' + st.concurrency) : '');
+    } else {
+      etaEl.textContent = '';
+    }
+  }
+  if (st.total_models > 1) {
+    document.getElementById('progress-title').textContent =
+      '正在并行验证（' + st.total_models + ' 个模型）';
+  } else {
+    document.getElementById('progress-title').textContent = '正在评测…';
+  }
+  const list = document.getElementById('model-progress-list');
+  const mps = st.model_progress || [];
+  if (list && mps.length) {
+    list.innerHTML = mps.map(function(m) {
+      const total = m.total || st.total_rows || 0;
+      const done = m.done || 0;
+      const mpct = total ? Math.round(done / total * 100) : 0;
+      const statusLabel = m.status === 'done' ? '完成'
+        : (m.status === 'cancelled' ? '已中止'
+          : (m.status === 'running' ? '运行中' : '等待中'));
+      return '<div style="margin:8px 0;padding:10px 12px;background:#fff;border:1px solid #edf0f2;border-radius:8px;">'
+        + '<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;color:#636e72;margin-bottom:6px;">'
+        + '<strong style="color:#2d3436;">' + esc(m.name || ('模型' + ((m.idx || 0) + 1))) + '</strong>'
+        + '<span>' + statusLabel + ' · ' + done + '/' + total + (m.errors ? (' · 失败 ' + m.errors) : '') + '</span>'
+        + '</div>'
+        + '<div class="progress-bar-bg" style="height:6px;"><div class="progress-bar-fill" style="width:' + mpct + '%;background:#6b8f71;"></div></div>'
+        + '</div>';
+    }).join('');
+  }
+}
+
+async function runBatch_DEPRECATED() {
+  if (!window.__job || !window.__job.job_id) { alert('请先上传数据文件'); return; }
+  const mp = getRunModelPayload();
+  if (!mp) { alert('请至少选一个预设模型，或添加自定义模型'); return; }
+  const taskDesc = (document.getElementById('dataset-desc') || {}).value || '';
+  if (!taskDesc.trim()) { alert('请在第一步填写「数据集说明」'); return; }
+  const apiPayload = getRunApiPayload();
+
+  setRunningUi(true);
+  try {
+    const res = await fetch('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job.job_id,
+        task_description: taskDesc,
+        api_key: apiPayload.api_key,
+        api_keys: apiPayload.api_keys,
+        models: mp.models,
+        custom_models: mp.custom_models,
+        field_mapping: collectFieldMappingFromUi(),
+        max_rows: getMaxRows(),
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    window.__runId = data.run_id;
+    startPolling(data.run_id);
+  } catch (e) {
+    alert('启动评测失败：' + (e.message || e));
+    setRunningUi(false);
+  }
+}
+
+function startPolling(runId) {
+  if (window.__pollTimer) clearInterval(window.__pollTimer);
+  window.__pollTimer = setInterval(async function() {
+    try {
+      const res = await fetch('/api/status/' + runId);
+      const st = await res.json();
+      updateProgress(st);
+      if (st.status === 'done' || st.status === 'error' || st.status === 'cancelled') {
+        clearInterval(window.__pollTimer);
+        window.__pollTimer = null;
+        if (st.status === 'error') {
+          alert('评测出错：\n' + (st.error || '未知错误'));
+          setRunningUi(false);
+          return;
+        }
+        const rr = await fetch('/api/results/' + runId);
+        const results = await rr.json().catch(function() { return {}; });
+        if (!rr.ok) {
+          alert((st.status === 'cancelled' ? '评测已中止，但' : '') + (results.error || '无法加载结果'));
+          setRunningUi(false);
+          return;
+        }
+        applyResultPayload(results);
+        setRunningUi(false);
+        loadTaskRegistry();
+        showPage('result');
+        if (st.status === 'cancelled') {
+          alert('评测已中止。已完成 ' + Math.round((st.progress || 0) * 100) + '%，可导出 CSV 查看部分结果。');
+        }
+      }
+    } catch (_) {}
+  }, 1500);
+}
+
+/* ───── 结果页渲染 ───── */
+function applyResultPayload(d) {
+  window.__lastResultPayload = d;
+  const isCancelled = d.status === 'cancelled';
+  document.getElementById('result-title').textContent =
+    (isCancelled ? '（已中止）' : '') + (d.filename || (window.__job && window.__job.filename) || '评测结果');
+  const nmod = (d.models && d.models.length) || 0;
+  const totalRows = d.total_rows || 0;
+  document.getElementById('result-meta').innerHTML =
+    '<span class="meta-pill">' + esc(d.filename || (window.__job && window.__job.filename) || '') + '</span>' +
+    '<span class="meta-pill">' + totalRows + ' 行</span>' +
+    '<span class="meta-pill">' + nmod + ' 个模型</span>';
+  document.getElementById('result-mode-note').style.display = 'none';
+  renderReadinessReport(d.readiness_report || {});
+  renderHarnessSpec(d.harness_spec || {});
+  renderSampleGate(d.sample_gate || {}, d.consensus_report || {}, d.failure_buckets || {});
+
+  document.getElementById('rs-rows').textContent = String(totalRows);
+  document.getElementById('rs-models').textContent = String(nmod);
+  document.getElementById('rs-time').textContent = fmtSec(d.duration_sec);
+  const rowTimeEl = document.getElementById('rs-row-time');
+  if (rowTimeEl) rowTimeEl.textContent = d.avg_time_sec_per_row != null ? (d.avg_time_sec_per_row + 's') : '—';
+  const rowCostEl = document.getElementById('rs-row-cost');
+  if (rowCostEl) rowCostEl.textContent = d.avg_cost_cny_per_row != null ? fmtCny(d.avg_cost_cny_per_row) : '—';
+  const stabilityEl = document.getElementById('rs-stability');
+  if (stabilityEl) stabilityEl.textContent = d.stability_consistency_pct != null ? (d.stability_consistency_pct + '%') : '未测';
+
+  const sum = d.summary || {};
+  const bestMet = (d.models && d.models.find(function(m) { return m.name === d.best_model; })) || {};
+  const bestMetrics = bestMet.metrics || {};
+  const isMicro = (sum.headline_metric || bestMetrics.headline_metric) === 'micro';
+  const noGroundTruth = d.readiness_report && d.readiness_report.has_ground_truth === false;
+  const accLabel = document.getElementById('rs-accuracy-label');
+  const judgedLabel = document.getElementById('rs-judged-label');
+  if (accLabel) accLabel.textContent = noGroundTruth ? '多模型多数一致率' : (isMicro ? '采分点一致率（最小单位）' : '最佳人工一致率');
+  if (judgedLabel) judgedLabel.textContent = noGroundTruth ? '可互比行数' : (isMicro ? '采分点一致 / 总数' : '一致 / 可评估');
+
+  const judgedEl = document.getElementById('rs-judged');
+  if (judgedEl) {
+    if (noGroundTruth) {
+      const c = d.consensus_report || {};
+      judgedEl.textContent = c.rows_compared != null ? String(c.rows_compared) : '—';
+    } else if (isMicro) {
+      const pc = sum.point_units_correct != null ? sum.point_units_correct : bestMetrics.point_units_correct;
+      const pt = sum.point_units_total != null ? sum.point_units_total : bestMetrics.point_units_total;
+      if (pt > 0 && pc != null) judgedEl.textContent = pc + ' / ' + pt;
+      else judgedEl.textContent = '—';
+    } else {
+      const ev = sum.best_rows_evaluated != null ? sum.best_rows_evaluated : bestMetrics.rows_evaluated;
+      const ok = sum.best_rows_correct != null ? sum.best_rows_correct : bestMetrics.rows_correct;
+      if (ev > 0 && ok != null) judgedEl.textContent = ok + ' / ' + ev;
+      else judgedEl.textContent = '—';
+    }
+  }
+
+  const foot = document.getElementById('result-api-footnote');
+  const footParts = [];
+  if (foot) {
+    const apiCalls = sum.total_api_calls;
+    const apiOk = sum.total_api_ok;
+    if (apiCalls > 0) {
+      const pct = sum.api_ok_pct != null ? sum.api_ok_pct : Math.round(apiOk / apiCalls * 100);
+      const costInfo = d.cost_estimation || {};
+      const estimatedRows = sum.cost_estimated_rows || d.cost_estimated_rows || 0;
+      let tokenLine = '';
+      if (sum.prompt_tokens || sum.completion_tokens || sum.reasoning_tokens) {
+        tokenLine = ' 用量：输入 ' + (sum.prompt_tokens || 0) + ' tokens，输出 ' + (sum.completion_tokens || 0) + ' tokens'
+          + (sum.reasoning_tokens ? ('，其中思考 ' + sum.reasoning_tokens + ' tokens') : '') + '。';
+      }
+      footParts.push('补充：接口调用 ' + apiOk + '/' + apiCalls + ' 次成功（' + pct + '%），仅表示模型有返回，不等于业务判断正确。成本优先按厂商返回 usage 计算；豆包思考消耗随 usage 计入输出侧。'
+        + (estimatedRows ? (' 有 ' + estimatedRows + ' 行未返回 usage，才使用字符粗估。') : '')
+        + tokenLine
+        + ' 单价由公开 API 价格按 ' + (costInfo.exchange_rate_usd_to_cny || 7.2) + ' 汇率折算，实际以厂商账单为准。');
+      if (costInfo.prices && costInfo.prices.length) {
+        footParts.push('本次模型单价：' + costInfo.prices.slice(0, 4).map(function(p) {
+          return (p.model || p.model_id || '模型') + ' 输入¥' + p.input_cny_per_1m_tokens + '/百万token，输出¥' + p.output_cny_per_1m_tokens + '/百万token';
+        }).join('； ') + (costInfo.prices.length > 4 ? '；…' : '') + '。');
+      }
+    }
+    if (isMicro && sum.row_strict_accuracy_pct != null) {
+      footParts.push('副指标：整行全对率 ' + sum.row_strict_accuracy_pct + '%（全部采分点+总分均对才算一行对）。');
+    }
+    if (footParts.length) {
+      foot.style.display = 'block';
+      foot.textContent = footParts.join(' ');
+    } else {
+      foot.style.display = 'none';
+    }
+  }
+
+  const accEl = document.getElementById('rs-accuracy');
+  if (accEl) {
+    const pct = noGroundTruth
+      ? ((d.consensus_report || {}).majority_consensus_pct)
+      : (d.best_judgment_accuracy_pct != null ? d.best_judgment_accuracy_pct : d.best_accuracy_pct);
+    accEl.textContent = pct != null ? (pct + '%') : '—';
+    if (noGroundTruth && pct != null) {
+      accEl.title = '无人工标注：这是模型之间多数一致率，不代表真实准确率。';
+    } else if (d.best_model && pct != null) {
+      accEl.title = isMicro
+        ? ('最佳模型：' + d.best_model + '（按采分点最小单位计对）')
+        : ('最佳模型：' + d.best_model + '（预测与人工标注一致的比例）');
+    }
+  }
+  const noteEl = document.getElementById('result-eval-note');
+  const exportBtn = document.getElementById('btn-export-results');
+  if (exportBtn) {
+    exportBtn.textContent = isCancelled
+      ? '导出 CSV（已完成部分）'
+      : '导出 CSV（完整测试集）';
+  }
+  if (noteEl) {
+    if (isCancelled) {
+      noteEl.style.display = 'block';
+      noteEl.className = 'info-box warn';
+      noteEl.innerHTML = '本次评测已<strong>中止</strong>。以下为已完成部分的结果与指标，可点击「导出 CSV」下载已跑批行。'
+        + (d.error ? ('<br><span style="font-size:12px;">' + esc(d.error) + '</span>') : '');
+    } else {
+    const gtCol = d.ground_truth_column;
+    const hasMetrics = d.models && d.models.some(function(m) {
+      return m.metrics && m.metrics.rows_evaluated > 0;
+    });
+    const judgmentNote = sum.judgment_metric_note || bestMetrics.judgment_metric_note;
+    const metricMsg = d.models && d.models.map(function(m) { return m.metrics && m.metrics.message; }).filter(Boolean)[0];
+    if (noGroundTruth) {
+      noteEl.style.display = 'block';
+      noteEl.innerHTML = '当前未配置有效人工标注列，结果页展示的是<strong>多模型一致率 / 分歧样本</strong>，只能作为自动化信心信号，不等同于真实准确率。建议抽查分歧样本并沉淀标注集。';
+    } else if (judgmentNote && hasMetrics) {
+      noteEl.style.display = 'block';
+      noteEl.textContent = judgmentNote;
+    } else if (metricMsg) {
+      noteEl.style.display = 'block';
+      noteEl.textContent = metricMsg;
+    } else if (!gtCol && !hasMetrics) {
+      noteEl.style.display = 'block';
+      noteEl.innerHTML = '未配置<strong>人工标注列</strong>，无法计算和人工判断的一致率。请在第二步选择人工标注列，并要求模型输出可比对字段（如 is_correct、prediction）。';
+    } else if (gtCol && !hasMetrics) {
+      noteEl.style.display = 'block';
+      const met0 = d.models && d.models[0] && d.models[0].metrics;
+      const withGt = met0 && met0.rows_with_ground_truth;
+      if (withGt > 0) {
+        noteEl.innerHTML = '已读取 <strong>' + withGt + '</strong> 行人工标注（列 <strong>' + esc(gtCol) + '</strong>），'
+          + '但模型输出中未能解析出可比对字段。请在 Prompt 中要求 JSON 输出 is_correct / prediction / judge（0/1 或 true/false）。';
+      } else {
+        noteEl.innerHTML = '已映射标注列 <strong>' + esc(gtCol) + '</strong>，但本次实验未读到有效标注值。请确认该列在文件中有内容，并重新点击「确认方案，准备试跑」。';
+      }
+    } else {
+      noteEl.style.display = 'none';
+    }
+    }
+  }
+
+  const cmpHead = document.getElementById('compare-thead');
+  if (cmpHead) {
+    const accTh = isMicro ? '采分点一致率' : (noGroundTruth ? '多模型一致率' : '和人工判断一致率');
+    const judgedTh = isMicro ? '采分点一致/总数' : (noGroundTruth ? '可互比行数' : '一致/可评估');
+    cmpHead.innerHTML = '<tr><th>模型</th><th>' + accTh + '</th><th>' + judgedTh + '</th><th>耗时</th><th style="color:#b2bec3;font-weight:500;">接口调用成功</th></tr>';
+  }
+
+  var tb = document.getElementById('compare-tbody');
+  if (tb && d.models) {
+    tb.innerHTML = d.models.map(function(m) {
+      const met = m.metrics || {};
+      const ev = met.rows_evaluated || 0;
+      const correct = met.rows_correct || 0;
+      const judgedLine = isMicro
+        ? ((met.point_units_total > 0 && met.point_units_correct != null)
+          ? (met.point_units_correct + ' / ' + met.point_units_total) : '—')
+        : (ev > 0 ? (correct + ' / ' + ev) : '—');
+      const acc = m.accuracy_pct != null ? (m.accuracy_pct + '%') : (met.rows_with_ground_truth ? '—' : '无标注');
+      const accStyle = m.accuracy_pct >= 80 ? 'color:#00b894;font-weight:700;font-size:15px;' : (m.accuracy_pct != null ? 'color:#e17055;font-weight:600;font-size:15px;' : 'color:#636e72;');
+      const apiTotal = m.api_calls || ((m.rows_ok || 0) + (m.rows_error || 0));
+      const apiOk = m.api_ok_calls || (m.rows_ok || 0);
+      const apiLine = m.synthetic ? '多个模型共同判断' : (apiTotal ? (apiOk + '/' + apiTotal) : '—');
+      const costLine = (!m.synthetic && m.avg_cost_cny_per_row != null) ? (' · ' + fmtCny(m.avg_cost_cny_per_row) + '/条') : '';
+      const estimateLine = m.cost_estimated_rows ? (' · ' + m.cost_estimated_rows + '行估算') : '';
+      const reasoningLine = m.reasoning_tokens ? (' · 思考' + m.reasoning_tokens + 'tok') : '';
+      const stableLine = m.stability_consistency_pct != null ? (' · 稳定 ' + m.stability_consistency_pct + '%') : '';
+      const timeMain = m.synthetic ? '汇总' : fmtSec(m.time_sec);
+      const perRowTime = (m.avg_time_sec_per_row != null && !m.synthetic) ? (m.avg_time_sec_per_row + 's/条') : '';
+      return '<tr>' +
+        '<td><strong>' + esc(m.name) + '</strong><br><span style="font-size:11px;color:#b2bec3;">' + esc(m.model_id || '') + '</span></td>' +
+        '<td style="' + accStyle + '">' + acc + '</td>' +
+        '<td>' + judgedLine + '</td>' +
+        '<td>' + timeMain + '<br><span style="font-size:11px;color:#b2bec3;">' + perRowTime + costLine + reasoningLine + estimateLine + stableLine + '</span></td>' +
+        '<td style="font-size:12px;color:#b2bec3;">' + apiLine + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  var st = document.getElementById('samples-tbody');
+  const samplesHead = document.querySelector('#page-result .card:nth-of-type(3) thead tr');
+  if (samplesHead) {
+    if (isMicro) {
+      samplesHead.innerHTML = '<th>行</th><th>模型</th><th>模型预测</th><th>人工标注</th><th>分列</th><th>采分点</th><th>整行</th><th style="color:#b2bec3;font-weight:500;">接口</th><th>响应（截取）</th>';
+    } else {
+      samplesHead.innerHTML = '<th>行</th><th>模型</th><th>模型预测</th><th>人工标注</th><th>分列</th><th>判断</th><th style="color:#b2bec3;font-weight:500;">接口</th><th>响应（截取）</th>';
+    }
+  }
+  if (st && d.samples) {
+    st.innerHTML = d.samples.map(function(s) {
+      var apiColor = s.status === 'ok' ? '#b2bec3' : '#d63031';
+      var matchColor = s.correct === true ? '#00b894' : (s.correct === false ? '#d63031' : '#b2bec3');
+      var pointLabel = s.point_units_label || '—';
+      var resp = (s.response || '').replace(/\n/g, ' ');
+      if (resp.length > 120) resp = resp.substring(0, 120) + '…';
+      var colLine = esc(s.match_explanation || '—');
+      var row = '<tr><td>' + s.row + '</td>' +
+        '<td style="font-size:12px;">' + esc(s.model) + '</td>' +
+        '<td style="font-size:12px;font-weight:600;">' + esc(s.predicted || '—') + '</td>' +
+        '<td style="font-size:12px;">' + esc(s.ground_truth || '—') + '</td>' +
+        '<td style="font-size:11px;color:#636e72;max-width:220px;word-break:break-all;" title="各标注列与模型值逐列比对（规则生成）">' + colLine + '</td>';
+      if (isMicro) {
+        row += '<td style="font-weight:700;">' + esc(pointLabel) + '</td>' +
+          '<td style="color:' + matchColor + ';font-weight:700;">' + esc(s.match_label || '—') + '</td>';
+      } else {
+        row += '<td style="color:' + matchColor + ';font-weight:700;">' + esc(s.match_label || '—') + '</td>';
+      }
+      row += '<td style="color:' + apiColor + ';font-size:11px;">' + (s.status === 'ok' ? '成功' : '失败') + '</td>' +
+        '<td style="font-size:12px;color:#636e72;max-width:280px;word-break:break-all;">' + esc(resp) + '</td></tr>';
+      return row;
+    }).join('');
+  }
+}
+
+function renderReadinessReport(r) {
+  const card = document.getElementById('readiness-report-card');
+  if (!card || !r || !r.verdict) { if (card) card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const title = document.getElementById('readiness-verdict');
+  if (title) {
+    title.className = 'readiness-title ' + (r.level || '');
+    title.textContent = '自动化可行性：' + r.verdict;
+  }
+  const ev = document.getElementById('readiness-evidence');
+  if (ev) ev.innerHTML = (r.evidence || []).map(function(x) { return '<span class="meta-pill">' + esc(x) + '</span>'; }).join(' ');
+  const risks = document.getElementById('readiness-risks');
+  if (risks) {
+    risks.innerHTML = (r.risks && r.risks.length)
+      ? '<p style="margin-top:12px;"><strong>主要风险</strong></p><ul class="mini-list">' + r.risks.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+  }
+  const next = document.getElementById('readiness-next');
+  if (next) {
+    next.innerHTML = (r.next_actions && r.next_actions.length)
+      ? '<p style="margin-top:12px;"><strong>下一步</strong></p><ul class="mini-list">' + r.next_actions.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>'
+      : '';
+  }
+}
+
+function renderHarnessSpec(spec) {
+  const card = document.getElementById('harness-spec-card');
+  const body = document.getElementById('harness-spec-body');
+  if (!card || !body || !spec || !spec.task_spec) { if (card) card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const task = spec.task_spec || {};
+  const prompt = spec.prompt_spec || {};
+  const evalSpec = spec.eval_spec || {};
+  body.innerHTML =
+    '<div class="spec-block"><strong>TaskSpec</strong>'
+    + '任务：' + esc(task.task_type || '未分类') + '<br>'
+    + '核心输入：' + esc((task.core_inputs || []).join('、') || '未配置') + '<br>'
+    + '参考材料：' + esc((task.reference_columns || []).join('、') || task.rubric_source || '无') + '</div>'
+    + '<div class="spec-block"><strong>PromptSpec</strong>'
+    + '输出：' + esc(prompt.output_format || prompt.output_description || '未配置') + '<br>'
+    + 'Prompt 长度：' + esc(prompt.prompt_chars || 0) + ' 字<br>'
+    + '策略：' + esc((prompt.strategies || []).join('、') || '无') + '</div>'
+    + '<div class="spec-block"><strong>EvalSpec</strong>'
+    + '标注：' + esc((evalSpec.ground_truth_columns || []).join('、') || '无') + '<br>'
+    + '方式：' + esc(evalSpec.evaluation_mode || 'auto') + '<br>'
+    + (evalSpec.has_ground_truth ? '指标：预测与人工标注一致率' : '指标：多模型一致率 / 分歧样本') + '</div>';
+}
+
+function renderSampleGate(gate, consensus, failures) {
+  const card = document.getElementById('sample-gate-card');
+  const body = document.getElementById('sample-gate-body');
+  if (!card || !body || !gate || !gate.mode) { if (card) card.style.display = 'none'; return; }
+  card.style.display = 'block';
+  const parts = [];
+  parts.push('<strong>' + esc(gate.recommendation || '') + '</strong>');
+  if (gate.api_ok_pct != null) parts.push('接口调用成功率：' + gate.api_ok_pct + '%');
+  if (gate.parse_success_pct != null) parts.push('解析成功率：' + gate.parse_success_pct + '%');
+  if (consensus && consensus.rows_compared) {
+    parts.push('无标注一致性：多数一致 ' + (consensus.majority_consensus_pct != null ? consensus.majority_consensus_pct + '%' : '—')
+      + '，完全一致 ' + (consensus.full_consensus_pct != null ? consensus.full_consensus_pct + '%' : '—'));
+  }
+  let html = parts.join('<br>');
+  const blockers = gate.blockers || [];
+  const warnings = gate.warnings || [];
+  if (blockers.length) html += '<p style="margin-top:10px;"><strong>阻断项</strong></p><ul class="mini-list">' + blockers.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+  if (warnings.length) html += '<p style="margin-top:10px;"><strong>提醒</strong></p><ul class="mini-list">' + warnings.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+  const failList = Object.keys(failures || {}).map(function(k){ return failures[k]; }).filter(function(x){ return x && x.count; });
+  if (failList.length) {
+    html += '<p style="margin-top:10px;"><strong>失败分组</strong></p><ul class="mini-list">'
+      + failList.map(function(f){ return '<li>' + esc(f.label) + '：' + esc(f.count) + ' 条</li>'; }).join('')
+      + '</ul>';
+  }
+  body.innerHTML = html;
+}
+
+async function exportRunResults() {
+  const runId = window.__runId;
+  if (!runId) {
+    alert('无评测记录，请先完成一次评测');
+    return;
+  }
+  try {
+    const res = await fetch('/api/status/' + runId);
+    const st = await res.json().catch(function() { return {}; });
+    if (!res.ok) throw new Error(st.error || '无法查询状态');
+    if (st.status === 'running' || st.status === 'queued') {
+      alert('评测仍在进行，请等待完成或先点击「中止评测」后再导出。');
+      return;
+    }
+    if (st.status !== 'done' && st.status !== 'cancelled') {
+      alert('暂无法导出：' + (st.error || st.status || '未知状态'));
+      return;
+    }
+  } catch (e) {
+    alert('导出前检查失败：' + (e.message || e));
+    return;
+  }
+  window.location.href = '/api/export_results/' + runId;
+}
+
+async function viewRunSnapshot() {
+  const runId = window.__runId;
+  if (!runId) { alert('无评测记录'); return; }
+  try {
+    const res = await fetch('/api/snapshot/' + runId);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '快照读取失败');
+    const snap = data.snapshot || {};
+    const spec = snap.harness_spec || {};
+    const report = snap.readiness_report || {};
+    alert('快照已保存：' + (data.snapshot_filename || runId + '.json')
+      + '\n结论：' + (report.verdict || '—')
+      + '\n任务：' + (((spec.task_spec || {}).task_name) || '—')
+      + '\n模型数：' + ((snap.models || []).length || 0)
+      + '\n可用于复跑、交接和后续对比。');
+  } catch (e) {
+    alert('查看快照失败：' + (e.message || e));
+  }
+}
+
+/* ───── 健康检查 ───── */
+async function checkHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const j = await r.json();
+    if (j.ok) document.getElementById('demo-banner').classList.add('show');
+  } catch (_) {}
+}
+
+/* ───── 通用 UI ───── */
+function toggleModel(el) {
+  el.classList.toggle('checked');
+  el.querySelector('.mc').textContent = el.classList.contains('checked') ? '' : '';
+  renderVendorApiKeys();
+}
+
+function toggleExpand(header) {
+  header.classList.toggle('open');
+  header.nextElementSibling.classList.toggle('open');
+}
+
+async function startClarify() {
+  if (!window.__job || !window.__job.job_id) { alert('请先上传数据'); return; }
+  if (getSensitiveStatus() === 'unmasked') {
+    alert('当前选择为“有，未脱敏”。未脱敏数据不能进入第 2 步 LLM 理解需求，请先脱敏或改用测试样本。');
+    return;
+  }
+  const desc = (document.getElementById('dataset-desc') || {}).value || '';
+  const outputExpect = (document.getElementById('user-output-expect') || {}).value || '';
+  if (!outputExpect.trim()) { alert('请填写「你希望 AI 每行输出什么」'); return; }
+  await loadModelsCatalog();
+  const modelKey = (document.getElementById('clarify-model-key') || {}).value;
+  const apiKey = (document.getElementById('api-key') || {}).value || '';
+  const clarifyBody = Object.assign({
+    job_id: window.__job.job_id,
+    task_description: desc,
+    user_output_expectation: outputExpect,
+    sensitive_status: getSensitiveStatus()
+  }, buildClarifyModelPayload());
+  if (clarifyBody.model_key === '__custom__' && !clarifyBody.custom_model_id) {
+    alert('请填写自定义模型 ID'); return;
+  }
+  window.__jobClarifyModelKey = clarifyBody.model_key;
+  const btn = document.getElementById('btn-next-1');
+  if (btn) { btn.disabled = true; btn.textContent = 'LLM 理解中…'; }
+  try {
+    const res = await fetch('/api/clarify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(clarifyBody)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '澄清失败');
+    renderClarifyPanel(data);
+    goStep(2);
+  } catch (e) {
+    alert('澄清失败：' + (e.message || e));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '下一步：LLM 理解需求 →'; }
+  }
+}
+
+
+async function confirmAndPrepare() {
+  if (!window.__job) return;
+  const fm = collectFieldMappingFromUi();
+  window.__fieldMapping = fm;
+  const prompt = (document.getElementById('prompt-template') || {}).value || '';
+  const answers = {};
+  document.querySelectorAll('.qa-answer').forEach(function(inp) {
+    answers[inp.dataset.qi] = inp.value;
+  });
+  try {
+    let res = await fetch('/api/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job.job_id,
+        field_mapping: fm,
+        prompt_template: prompt,
+        prompt_revision_instruction: (document.getElementById('prompt-revision-instruction') || {}).value || '',
+        task_type: (document.getElementById('edit-task-type') || {}).value || '',
+        output_format: (document.getElementById('edit-output-format') || {}).value || '',
+        output_description: (document.getElementById('edit-output-desc') || {}).value || '',
+        user_output_expectation: (document.getElementById('user-output-expect') || {}).value || '',
+        user_answers: answers,
+        strategies: collectStrategies()
+      })
+    });
+    let data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    window.__lastSupplementNote = '';
+    if (data.prompt_template) {
+      const pt = document.getElementById('prompt-template');
+      if (pt) pt.value = data.prompt_template;
+    }
+    if (data.prompt_revision_instruction !== undefined) {
+      setValue('prompt-revision-instruction', data.prompt_revision_instruction || '');
+    }
+    if (data.user_supplement_applied && data.user_supplement_count) {
+      window.__lastSupplementNote = '补充说明已通过 AI 重新理解并更新配置。';
+    } else if (data.user_supplement_warning) {
+      window.__lastSupplementNote = data.user_supplement_warning;
+    }
+    if (data.mapping_warnings && data.mapping_warnings.length) {
+      alert('列映射提示：\n' + data.mapping_warnings.join('\n'));
+    }
+    res = await fetch('/api/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ job_id: window.__job.job_id })
+    });
+    data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    const st = document.getElementById('prepare-status');
+    if (st) {
+      st.style.display = 'block';
+      const gs = data.ground_truth_stats || {};
+      const gtCol = data.ground_truth_column || (gs.ground_truth_column || '');
+      let extra = '';
+      const gtCols = gs.ground_truth_columns || (gtCol ? [gtCol] : []);
+      const perCol = gs.per_column || {};
+      if (gtCols.length) {
+        extra = '<br>人工标注列：' + gtCols.map(function(c) {
+          const n = perCol[c] != null ? perCol[c] : '?';
+          const tot = gs.total_rows != null ? gs.total_rows : '?';
+          const main = (c === gtCol) ? ' <strong>主</strong>' : '';
+          return '<code>' + esc(c) + '</code>' + main + ' ' + n + '/' + tot;
+        }).join('； ');
+      } else if (gtCol) {
+        const filled = gs.filled_rows != null ? gs.filled_rows : '?';
+        const total = gs.total_rows != null ? gs.total_rows : '?';
+        extra = '<br>人工标注列 <strong>' + esc(gtCol) + '</strong>：有效 ' + filled + ' / ' + total + ' 行';
+        if (filled === 0) {
+          st.className = 'info-box orange';
+          extra += '<br><span style="color:#bf6c00;">该列在文件中全为空，无法计算和人工判断的一致率。请换一列有 0/1 等标注的列，或先补全数据。</span>';
+        } else {
+          st.className = 'info-box ok';
+          extra += '<br>请确认 Prompt 要求模型输出可与该列比对的字段（如 is_correct: 0/1）。';
+        }
+      } else {
+        st.className = 'info-box ok';
+      }
+      const supNote = window.__lastSupplementNote || '';
+      st.innerHTML = '已备份；规范文件：<code>' + esc(data.prepared_filename) + '</code>' + extra
+        + (supNote ? '<br>' + esc(supNote) : '');
+    }
+    if (window.__job) window.__job.prepared_path = data.prepared_path || true;
+    window.__promptValidated = false;
+    window.__fieldMapping = fm;
+    const aligned = Object.assign({}, window.__clarified || {});
+    aligned.field_mapping = fm;
+    aligned.suggested_prompt = (document.getElementById('prompt-template') || {}).value || prompt;
+    aligned.task_type = (document.getElementById('edit-task-type') || {}).value || aligned.task_type || '';
+    aligned.output_format = (document.getElementById('edit-output-format') || {}).value || aligned.output_format || '';
+    aligned.output_description = (document.getElementById('edit-output-desc') || {}).value || aligned.output_description || '';
+    window.__clarified = aligned;
+    renderHarnessContractPreview();
+    const vbtn = document.getElementById('btn-validate-prompt');
+    if (vbtn) vbtn.disabled = false;
+    document.getElementById('btn-to-step3').disabled = false;
+    const vs = document.getElementById('validate-status');
+    if (vs) vs.style.display = 'none';
+  } catch (e) {
+    alert('准备数据失败：' + (e.message || e));
+  }
+}
+
+
+async function validatePromptSetup(runLlm) {
+  if (!window.__job || !window.__job.job_id) { alert('请先上传并完成数据准备'); return; }
+  if (!window.__job.prepared_path) { alert('请先点击「确认方案，准备试跑」'); return; }
+  const btn = document.getElementById('btn-validate-prompt');
+  const vs = document.getElementById('validate-status');
+  const apiPayload = getRunApiPayload();
+  const modelKey = (document.getElementById('clarify-model-key') || {}).value || 'gemini-3.5-flash';
+  if (btn) { btn.disabled = true; btn.textContent = '校验中…'; }
+  try {
+    const res = await fetch('/api/validate_prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job.job_id,
+        prompt_template: (document.getElementById('prompt-template') || {}).value || '',
+        field_mapping: collectFieldMappingFromUi(),
+        strategies: collectStrategies(),
+        run_llm_probe: !!runLlm,
+        probe_rows: runLlm ? 1 : 0,
+        model_key: modelKey,
+        api_key: apiPayload.api_key,
+        api_keys: apiPayload.api_keys
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (!vs) return;
+    vs.style.display = 'block';
+    const stratUi = collectStrategies();
+    const parts = [];
+    if (data.strategies_summary && data.strategies_summary.length) {
+      parts.push('<span style="font-size:12px;">' + data.strategies_summary.map(esc).join('<br>') + '</span>');
+    }
+    if (data.prompt_engineering_enabled && data.prompt_engineering_append) {
+      parts.push('<strong>策略将追加到 Prompt 末尾：</strong><pre style="font-size:11px;white-space:pre-wrap;margin:6px 0 0;">' + esc(data.prompt_engineering_append) + '</pre>');
+    } else if (stratUi.enabled && !strategyChangesPrompt(stratUi)) {
+      parts.push('<span style="font-size:12px;color:#e17055;">已启用策略但未勾选会改 Prompt 的选项。</span>');
+    }
+    if (data.sample_rendered_tail) {
+      parts.push('<strong>第 1 行渲染后 Prompt 尾部预览：</strong><pre style="font-size:11px;white-space:pre-wrap;max-height:160px;overflow:auto;">' + esc(data.sample_rendered_tail) + '</pre>');
+    }
+    if (data.prompt_render_ok) {
+      parts.push('<strong>Prompt 模板</strong>：样例行试渲染通过');
+      vs.className = 'info-box ok';
+    } else {
+      parts.unshift('<strong>Prompt 模板</strong>：渲染失败<br>' + esc((data.render_errors || []).join('<br>')));
+      vs.className = 'info-box orange';
+    }
+    let html = parts.join('<br><br>');
+    if (data.llm_probe) {
+      if (data.llm_probe.error) {
+        html += '<br>试跑失败：' + esc(data.llm_probe.error);
+        vs.className = 'info-box orange';
+      } else {
+        const p = data.llm_probe;
+        html += '<br>试跑 ' + p.rows_probed + ' 行：可解析 ' + p.rows_parseable + '，可与标注比对 ' + p.rows_comparable;
+        if (p.samples && p.samples.length) {
+          html += '<ul style="margin:8px 0 0 18px;font-size:12px;">';
+          p.samples.forEach(function(s) {
+            html += '<li>行' + s.row + '：预测=' + esc(String(s.predicted != null ? s.predicted : '—'))
+              + '，标注=' + esc(String(s.ground_truth != null ? s.ground_truth : '—'))
+              + (s.correct === true ? ' 对' : (s.correct === false ? ' 错' : '')) + '</li>';
+          });
+          html += '</ul>';
+        }
+      }
+    }
+    if (data.probe_warning) {
+      html += '<br><strong>注意：</strong>' + esc(data.probe_warning);
+      vs.className = 'info-box orange';
+    }
+    vs.innerHTML = html;
+    window.__promptValidated = !!data.ready_for_batch;
+  } catch (e) {
+    if (vs) {
+      vs.style.display = 'block';
+      vs.className = 'info-box orange';
+      vs.textContent = '校验失败：' + (e.message || e);
+    }
+    window.__promptValidated = false;
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '先试跑 1 行'; }
+  }
+}
+
+
+async function runSample_DEPRECATED() {
+  if (!window.__job || !window.__job.job_id) { alert('请先完成数据准备'); return; }
+  const mp = getRunModelPayload();
+  if (!mp) { alert('请至少选一个预设模型，或添加自定义模型'); return; }
+  const apiPayload = getRunApiPayload();
+  setRunningUi(true);
+  try {
+    const res = await fetch('/api/run_sample', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        job_id: window.__job.job_id,
+        api_key: apiPayload.api_key,
+        api_keys: apiPayload.api_keys,
+        models: mp.models,
+        custom_models: mp.custom_models,
+        field_mapping: collectFieldMappingFromUi(),
+        rows: 5
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    window.__runId = data.run_id;
+    startPolling(data.run_id);
+  } catch (e) {
+    alert('小样本试跑启动失败：' + (e.message || e));
+    setRunningUi(false);
+  }
+}
+
+async function loadTaskRegistry() {
+  try {
+    const res = await fetch('/api/runs');
+    const data = await res.json();
+    const runs = data.runs || [];
+    const el = document.getElementById('task-list-count');
+    if (el) el.textContent = runs.length ? ('最近 ' + runs.length + ' 次评测') : '暂无评测记录';
+    const tb = document.getElementById('registry-tbody');
+    if (!tb) return;
+    if (!runs.length) {
+      tb.innerHTML = '<tr><td colspan="4" style="color:#636e72;">还没有验证记录。点击右上角「开始验证一个工作」开始。</td></tr>';
+      return;
+    }
+    tb.innerHTML = runs.map(function(r) {
+      const statusMap = { done: '已完成', running: '运行中', queued: '排队中', error: '失败', cancelled: '已中止' };
+      const cls = r.status === 'done' ? 'status-done'
+        : (r.status === 'cancelled' ? 'status-draft'
+          : (r.status === 'error' ? 'status-draft' : 'status-running'));
+      const acc = r.best_accuracy_pct != null ? (r.best_accuracy_pct + '%')
+        : ((r.status === 'done' || r.status === 'cancelled') ? '无可评估标注' : Math.round((r.progress || 0) * 100) + '%');
+      const canOpen = r.status === 'done' || r.status === 'error' || r.status === 'cancelled';
+      const rid = esc(r.run_id || '').replace(/"/g, '&quot;');
+      const btn = canOpen
+        ? '<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="openRunResult(&quot;' + rid + '&quot;)">查看结果</button>'
+        : '<button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" onclick="resumeRunPolling(&quot;' + rid + '&quot;)">继续追踪</button>';
+      return '<tr><td><span class="status-badge ' + cls + '">' + esc(statusMap[r.status] || r.status || '') + '</span></td>'
+        + '<td><strong>' + esc(r.task_type || r.task_description || r.filename || r.run_id) + '</strong><br><span style="font-size:12px;color:#636e72;">' + esc(r.filename || '') + ' · ' + esc(r.created_at || '') + '</span></td>'
+        + '<td style="font-size:12px;">' + esc(acc) + '<br><span style="color:#b2bec3;">' + (r.total_rows || 0) + ' 行 · ' + (r.total_models || 0) + ' 模型</span></td>'
+        + '<td>' + btn + '</td></tr>';
+    }).join('');
+  } catch (_) {}
+}
+
+async function openRunResult(runId) {
+  try {
+    const rr = await fetch('/api/results/' + runId);
+    const results = await rr.json();
+    if (!rr.ok) throw new Error(results.error || '结果未就绪');
+    if (results.status === 'error') throw new Error(results.error || '评测失败');
+    if (results.status === 'cancelled' && !(results.models && results.models.length)) {
+      throw new Error(results.error || '评测已中止，且尚无已完成的结果');
+    }
+    window.__runId = runId;
+    applyResultPayload(results);
+    showPage('result');
+  } catch (e) {
+    alert('打开结果失败：' + (e.message || e));
+  }
+}
+
+async function toggleResultHistory() {
+  const card = document.getElementById('result-history-card');
+  const list = document.getElementById('result-history-list');
+  if (!card || !list) return;
+  const willShow = card.style.display === 'none' || !card.style.display;
+  card.style.display = willShow ? 'block' : 'none';
+  if (!willShow) return;
+  list.textContent = '加载中…';
+  try {
+    const res = await fetch('/api/runs');
+    const data = await res.json();
+    const runs = data.runs || [];
+    if (!runs.length) {
+      list.textContent = '暂无历史任务。';
+      return;
+    }
+    list.innerHTML = runs.slice(0, 8).map(function(r) {
+      const acc = r.best_accuracy_pct != null ? (r.best_accuracy_pct + '%') : (r.status || '');
+      const rid = esc(r.run_id || '').replace(/"/g, '&quot;');
+      return '<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #f0f0f0;padding:8px 0;">'
+        + '<div><strong>' + esc(r.task_type || r.task_description || r.filename || r.run_id) + '</strong><br>'
+        + '<span style="font-size:12px;color:#b2bec3;">' + esc(r.filename || '') + ' · ' + esc(r.finished_at || r.created_at || '') + '</span></div>'
+        + '<div style="text-align:right;"><span style="font-size:12px;color:#636e72;">' + esc(acc) + '</span><br>'
+        + '<button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:12px;margin-top:4px;" onclick="openRunResult(&quot;' + rid + '&quot;)">打开</button></div>'
+        + '</div>';
+    }).join('');
+  } catch (e) {
+    list.textContent = '历史加载失败：' + (e.message || e);
+  }
+}
+
+function resumeRunPolling(runId) {
+  window.__runId = runId;
+  showPage('create', 3);
+  setRunningUi(true);
+  startPolling(runId);
+}
+
+async function loadSampleFile(relPath) {
+  try {
+    const res = await fetch('/api/load_sample', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: relPath })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    resetCreateWizard();
+    applyUploadPayload(data);
+    showPage('create');
+    goStep(1);
+  } catch (e) {
+    alert('加载样本失败：' + (e.message || e));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initUploadUi();
+  initRubricUploadUi();
+  checkHealth();
+  loadEvaluationModes();
+  loadTaskRegistry();
+  loadModelsCatalog().then(function() { renderCustomRunModelsList(); }).catch(function() {});
+});
+</script>
+</body>
+</html>

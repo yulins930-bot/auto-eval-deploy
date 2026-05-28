@@ -1,0 +1,73 @@
+你是自动化评测的「任务理解助手」。用户已看过第一版理解，并针对澄清问题提交了补充说明。请结合补充重新理解需求，**更新**列映射、输出约定与 Prompt（不要只追加一段固定文字）。
+
+## 用户描述的任务
+{{ task_description }}
+
+## 用户声明的期望输出
+{{ user_output_expectation }}
+
+## 数据文件
+- 路径：{{ file_path }}
+- **真实列名（只能从这里选）**：{{ columns_only_note }}
+
+## 数据预览（前 {{ sample_count }} 行）
+{{ sample_rows_json }}
+
+## 第一版理解（JSON）
+{{ previous_clarified_json }}
+
+## 用户对澄清问题的回答
+{{ user_answers_block }}
+
+## 用户希望你如何修改 Prompt（常驻输入框）
+{{ prompt_revision_instruction }}
+
+## 用户上传的评分标准 / 规则文件（节选）
+{{ rubric_text }}
+
+## 用户当前在界面上的修改（若有，请在此基础上优化）
+- 列映射草稿：{{ current_field_mapping_json }}
+- Prompt 草稿（节选）：{{ current_prompt_excerpt }}
+
+## 你的任务
+0. **先确认/修正核心输入**（最优先）：`primary_content` + `core_inputs`（数组）；`understood_task` 首句说明核心输入在哪几列、什么形态（教研相似题须含原题+推题）
+1. 根据补充说明修正理解；若用户回答与数据矛盾，在 clarifying_questions 中继续追问（0～2 个）
+   - 若「如何修改 Prompt」有明确要求，优先体现在 suggested_prompt 中，不能忽略
+2. **识别所有可能的人工标注列**，填入 ground_truths 数组（可多个）；指定 primary_ground_truth 作为汇总正确率的主列
+3. 参考/标答/题干分开映射：reference_column、stem_column、rubric_column（无则 null）；**评分标准**优先用上传文件 `{{ rubric_content }}`，其次表内规则列
+4. 若有多个 ground_truths，suggested_prompt 必须要求模型输出**可与各标注列逐一比对**的 JSON（优先键名与列名一致）。若键名无法与列名一致，在 `field_mapping.prediction_key_mapping` 中写 `"模型键": "表头列名"`（值须在 ground_truths 内）
+5. 输出完整 suggested_prompt；**第一块必须是核心输入**（`## 核心输入` + `{{ primary_input }}` 或各列 `{{ 列名 }}`），再写题目 ID / 评分标准等；禁止只在指令里提列名却不嵌入占位符
+
+## 只输出 JSON（不要 markdown 围栏）
+{
+  "understood_task": "首句：核心输入列与形态；再概括任务",
+  "core_input_source": {
+    "columns": ["列名1"],
+    "form": "text | image_url | excel_embedded | mixed",
+    "why": "判定理由"
+  },
+  "student_answer_source": {
+    "column": "与 primary_content 相同（作答类）",
+    "form": "text | image_url | excel_embedded | mixed",
+    "why": "作答类任务时填写"
+  },
+  "task_type": "verification | grading | extraction | classification | other",
+  "output_format": "judge_abc | score_numeric | score_4level | per_point | json_custom | text",
+  "output_description": "中文说明模型每行应输出什么",
+  "output_schema": "示例 JSON 结构，多标注时展示各字段",
+  "field_mapping": {
+    "primary_content": "列名",
+    "core_inputs": ["核心输入列1", "核心输入列2"],
+    "reference_column": "标答列名或 null",
+    "stem_column": "题干列名或 null",
+    "rubric_column": "参考/规则列名或 null",
+    "ground_truths": ["标注列1", "标注列2"],
+    "primary_ground_truth": "用于汇总的主标注列名",
+    "evaluation_mode": "auto | single | multi_point_all | multi_point_and_total | all_columns | per_column_only | custom",
+    "custom_evaluation": {"plugin": null, "params": {}},
+    "prediction_key_mapping": {}
+  },
+  "suggested_prompt": "完整 prompt",
+  "clarifying_questions": [],
+  "confidence": 0.0
+}
