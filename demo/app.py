@@ -792,6 +792,18 @@ MODELS = {
         "vendor": "anthropic", "provider": "anthropic", "model_id": "claude-opus-4-8",
         "name": "Claude Opus 4.8", "supports_vision": True,
     },
+    "claude-sonnet-4-6": {
+        "vendor": "anthropic", "provider": "anthropic", "model_id": "claude-sonnet-4-6",
+        "name": "Claude Sonnet 4.6", "supports_vision": True,
+    },
+    "claude-sonnet-4-5": {
+        "vendor": "anthropic", "provider": "anthropic", "model_id": "claude-sonnet-4-5-20250929",
+        "name": "Claude Sonnet 4.5", "supports_vision": True,
+    },
+    "claude-haiku-4-5": {
+        "vendor": "anthropic", "provider": "anthropic", "model_id": "claude-haiku-4-5-20251001",
+        "name": "Claude Haiku 4.5", "supports_vision": True,
+    },
 }
 
 USD_TO_CNY = 7.20
@@ -817,6 +829,9 @@ MODEL_PRICE_USD_PER_1M_TOKENS = {
     "deepseek-chat": {"input": 0.27, "output": 1.10},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19},
     "claude-opus-4-8": {"input": 5.00, "output": 25.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
+    "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
+    "claude-haiku-4-5-20251001": {"input": 1.00, "output": 5.00},
 }
 
 PROVIDER_PRICE_USD_PER_1M_TOKENS = {
