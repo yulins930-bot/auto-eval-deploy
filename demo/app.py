@@ -662,6 +662,34 @@ VENDORS = {
     },
 }
 
+
+def _demo_access_code() -> str:
+    """可选演示口令：设置后，只有输入该口令才允许使用服务端环境变量 Key。"""
+    return (os.environ.get("DEMO_ACCESS_CODE") or "").strip()
+
+
+def _is_demo_access_code(value: str | None) -> bool:
+    code = _demo_access_code()
+    return bool(code and (value or "").strip() == code)
+
+
+def _env_api_key_for_vendor(vendor_id: str, presented_value: str | None = "") -> str:
+    """解析服务端托管 Key。若设置 DEMO_ACCESS_CODE，则必须输入口令才启用。"""
+    env_var = VENDORS.get(vendor_id, {}).get("env_var", "")
+    if not env_var:
+        return ""
+    if _demo_access_code() and not _is_demo_access_code(presented_value):
+        return ""
+    return (os.environ.get(env_var) or "").strip()
+
+
+def _resolve_presented_api_key(vendor_id: str, presented_value: str | None) -> str:
+    """用户可填真实 Key；也可填 DEMO_ACCESS_CODE，由后端换成环境变量 Key。"""
+    value = (presented_value or "").strip()
+    if _is_demo_access_code(value):
+        return _env_api_key_for_vendor(vendor_id, value)
+    return value or _env_api_key_for_vendor(vendor_id, value)
+
 # ── 模型注册表（vendor 与澄清/跑批所用 provider 对应）────
 MODELS = {
     "gemini-3.5-flash": {
@@ -888,7 +916,7 @@ def vendors_in_specs(model_specs: list[dict]) -> list[str]:
 
 
 def resolve_api_keys(body: dict, model_specs: list[dict]) -> dict[str, str]:
-    """按厂商解析 API Key：api_keys 字典 > 单一 api_key（仅单厂商时）> 环境变量。"""
+    """按厂商解析 API Key：api_keys 字典 > 单一 api_key（仅单厂商时）> 环境变量/演示口令。"""
     default = (body.get("api_key") or "").strip()
     raw_keys = body.get("api_keys") or {}
     if not isinstance(raw_keys, dict):
@@ -900,12 +928,12 @@ def resolve_api_keys(body: dict, model_specs: list[dict]) -> dict[str, str]:
 
     for vid in vendors_needed:
         k = (raw_keys.get(vid) or "").strip()
+        if k:
+            k = _resolve_presented_api_key(vid, k)
         if not k and single_vendor and default:
-            k = default
+            k = _resolve_presented_api_key(vid, default)
         if not k:
-            env_var = VENDORS.get(vid, {}).get("env_var", "")
-            if env_var:
-                k = (os.environ.get(env_var) or "").strip()
+            k = _env_api_key_for_vendor(vid, "")
         if k:
             out[vid] = k
     return out
@@ -2343,11 +2371,10 @@ def clarify():
     rubric_text = (body.get("rubric_text") or job.get("rubric_text") or "").strip()
     if body.get("rubric_text") is not None:
         job["rubric_text"] = rubric_text[:50000]
-    env_fallback = os.environ.get(vendor_info.get("env_var", ""), "")
-    api_key = (body.get("api_key") or "").strip() or env_fallback
+    api_key = _resolve_presented_api_key(vendor, body.get("api_key"))
     if not api_key:
         return jsonify({
-            "error": f"请填写 {vendor_info.get('name', vendor)} 的 API Key（格式类似 {vendor_info.get('key_hint', '')}）",
+            "error": f"请填写 {vendor_info.get('name', vendor)} 的 API Key 或演示口令（格式类似 {vendor_info.get('key_hint', '')}）",
         }), 400
 
     provider, model_id, base_url = mi["provider"], mi["model_id"], mi.get("base_url")
@@ -2574,10 +2601,9 @@ def clarify_followup():
     vendor = mi.get("vendor", "google")
     model_key = mi.get("key", body.get("model_key") or job.get("clarify_model_key") or "gemini-3.5-flash")
     _save_clarify_model_prefs(job, body, model_key)
-    env_fallback = os.environ.get(vendor_info.get("env_var", ""), "")
-    api_key = (body.get("api_key") or "").strip() or env_fallback
+    api_key = _resolve_presented_api_key(vendor, body.get("api_key"))
     if not api_key:
-        return jsonify({"error": f"请填写 {vendor_info.get('name', vendor)} 的 API Key"}), 400
+        return jsonify({"error": f"请填写 {vendor_info.get('name', vendor)} 的 API Key 或演示口令"}), 400
 
     path = Path(job["path"])
     file_data = read_rows(path)
@@ -3620,7 +3646,7 @@ def analyze_results():
         model_key = "gemini-3.5-flash"
     mi = dict(MODELS[model_key])
     api_keys = resolve_api_keys(body, [mi])
-    api_key = api_keys.get(mi.get("vendor", "google")) or (body.get("api_key") or "").strip()
+    api_key = api_keys.get(mi.get("vendor", "google"))
     if not api_key:
         return jsonify({"error": "请提供用于解读的 API Key"}), 400
 

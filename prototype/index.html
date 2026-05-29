@@ -253,7 +253,7 @@
     <h1 id="page-title">工作验证台</h1>
     <a href="javascript:void(0)" onclick="showPage('list')" style="font-size:13px;color:var(--c-primary);text-decoration:none;">用真实数据判断：这件事能不能交给 AI</a>
   </div>
-  <div id="demo-banner">已连接 · <strong>真实 LLM</strong>（自备 API Key）</div>
+  <div id="demo-banner">已连接 · <strong>真实 LLM</strong>（可填 API Key 或演示口令）</div>
 
   <!-- ════════ 任务列表 ════════ -->
   <div class="page active" id="page-list">
@@ -371,9 +371,9 @@
           <input type="text" id="custom-clarify-model-id" placeholder="如 gemini-3.5-flash、gpt-5.5">
         </div>
         <div class="form-group">
-          <label>API Key</label>
-          <input type="password" id="api-key" autocomplete="off" placeholder="请先选择厂商">
-          <div class="hint" id="api-key-hint">须与所选厂商一致。Key 只用于本地调用模型，不会写入结果文件。</div>
+          <label>API Key / 演示口令</label>
+          <input type="password" id="api-key" autocomplete="off" placeholder="请先选择厂商；演示时可输入口令">
+          <div class="hint" id="api-key-hint">可填真实 API Key；若已配置服务端 Key，也可填演示口令。不会写入结果文件。</div>
         </div>
 
       </div>
@@ -463,13 +463,13 @@
       <p style="font-size:13px; color:#636e72; margin-bottom:12px;">建议先跑 5-20 行，看输出是否稳定、能否解析、是否接近人工判断。通过后再全量。跨厂商对比时请分别填写 API Key。</p>
       <div class="info-box info" style="margin-bottom:16px;"><strong>小样本优先</strong><br>先试跑可以避免全量跑完才发现输出格式不对、Key 配错、或模型根本不适合这类任务。</div>
       <div class="form-group" style="margin-bottom:16px;">
-        <label>各厂商 API Key（按所选模型自动显示）</label>
+        <label>各厂商 API Key / 演示口令（按所选模型自动显示）</label>
         <div id="vendor-api-keys" style="display:flex;flex-direction:column;gap:10px;"></div>
-        <div class="hint" style="margin-top:8px;">第 1 步同厂商的 Key 会自动填入；多厂商评测须分别填写。也可设环境变量（如 GEMINI_API_KEY、OPENAI_API_KEY）。</div>
+        <div class="hint" style="margin-top:8px;">第 1 步同厂商的 Key / 口令会自动填入；多厂商评测可复用同一个演示口令。真实 Key 建议配置在服务端环境变量中。</div>
       </div>
       <div class="form-group" style="margin-bottom:16px;">
         <label>备用 Key（可选）</label>
-        <input type="password" id="run-batch-api-key" autocomplete="off" placeholder="仅在选择单一厂商且上方未填时使用">
+        <input type="password" id="run-batch-api-key" autocomplete="off" placeholder="仅在选择单一厂商且上方未填时使用；可填演示口令">
       </div>
 
       <div class="model-grid" style="margin-bottom:24px;">
@@ -922,7 +922,7 @@ async function renderVendorApiKeys() {
     return '<div class="form-group" style="margin:0;">'
       + '<label style="font-size:13px;">' + esc(v.name) + '</label>'
       + '<input type="password" data-vendor-api-key="' + esc(vid) + '" autocomplete="off" '
-      + 'placeholder="' + esc(v.key_hint || 'API Key') + '" value="' + esc(val) + '" '
+      + 'placeholder="' + esc((v.key_hint || 'API Key') + '；或演示口令') + '" value="' + esc(val) + '" '
       + 'oninput="window.__vendorApiKeysSaved=window.__vendorApiKeysSaved||{};window.__vendorApiKeysSaved[\'' + esc(vid) + '\']=this.value;">'
       + '</div>';
   }).join('');
@@ -961,9 +961,9 @@ function syncClarifyModels() {
   populateRunCustomVendor();
   const hint = document.getElementById('api-key-hint');
   const v = cat.vendors[vid];
-  if (hint && v) hint.textContent = '请填写 ' + v.name + ' 的 Key（' + v.key_hint + '）';
+  if (hint && v) hint.textContent = '请填写 ' + v.name + ' 的 Key（' + v.key_hint + '），或输入演示口令使用服务端托管 Key。';
   const keyInput = document.getElementById('api-key');
-  if (keyInput && v) keyInput.placeholder = v.key_hint;
+  if (keyInput && v) keyInput.placeholder = v.key_hint + '；或演示口令';
 }
 
 async function renderClarifyPanel(data) {
