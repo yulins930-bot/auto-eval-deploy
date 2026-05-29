@@ -660,6 +660,12 @@ VENDORS = {
         "key_hint": "sk-...（platform.deepseek.com）",
         "env_var": "DEEPSEEK_API_KEY",
     },
+    "anthropic": {
+        "name": "Claude / Anthropic",
+        "key_hint": "sk-ant-...（console.anthropic.com）",
+        "env_var": "ANTHROPIC_API_KEY",
+        "env_alt_vars": ["CLAUDE_API_KEY"],
+    },
 }
 
 
@@ -675,12 +681,17 @@ def _is_demo_access_code(value: str | None) -> bool:
 
 def _env_api_key_for_vendor(vendor_id: str, presented_value: str | None = "") -> str:
     """解析服务端托管 Key。若设置 DEMO_ACCESS_CODE，则必须输入口令才启用。"""
-    env_var = VENDORS.get(vendor_id, {}).get("env_var", "")
+    vendor = VENDORS.get(vendor_id, {})
+    env_var = vendor.get("env_var", "")
     if not env_var:
         return ""
     if _demo_access_code() and not _is_demo_access_code(presented_value):
         return ""
-    return (os.environ.get(env_var) or "").strip()
+    for name in [env_var] + list(vendor.get("env_alt_vars") or []):
+        key = (os.environ.get(name) or "").strip()
+        if key:
+            return key
+    return ""
 
 
 def _resolve_presented_api_key(vendor_id: str, presented_value: str | None) -> str:
@@ -777,6 +788,10 @@ MODELS = {
         "name": "DeepSeek Reasoner (R1)", "base_url": "https://api.deepseek.com/v1",
         "supports_vision": False,
     },
+    "claude-opus-4-8": {
+        "vendor": "anthropic", "provider": "anthropic", "model_id": "claude-opus-4-8",
+        "name": "Claude Opus 4.8", "supports_vision": True,
+    },
 }
 
 USD_TO_CNY = 7.20
@@ -801,12 +816,14 @@ MODEL_PRICE_USD_PER_1M_TOKENS = {
     "qwen-vl-plus": {"input": 0.40, "output": 1.20},
     "deepseek-chat": {"input": 0.27, "output": 1.10},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19},
+    "claude-opus-4-8": {"input": 5.00, "output": 25.00},
 }
 
 PROVIDER_PRICE_USD_PER_1M_TOKENS = {
     "gemini": {"input": 0.50, "output": 3.00},
     "openai": {"input": 5.00, "output": 30.00},
     "openai_compat": {"input": 0.30, "output": 1.20},
+    "anthropic": {"input": 5.00, "output": 25.00},
 }
 
 # Gemini API 旧展示名 -> 实际 model_id（避免 404）
@@ -860,6 +877,8 @@ def _vendor_to_model_spec(vendor: str, model_id: str, name: str | None = None) -
         provider = "gemini"
     elif vid == "openai":
         provider = "openai"
+    elif vid == "anthropic":
+        provider = "anthropic"
     else:
         provider = "openai_compat"
     return {
@@ -1142,6 +1161,8 @@ def call_llm_with_usage(
     imgs = images or []
     if provider == "gemini":
         return _call_gemini_with_usage(model_id, api_key, prompt, temperature, images=imgs)
+    if provider == "anthropic":
+        return _call_anthropic_with_usage(model_id, api_key, prompt, images=imgs)
     if provider in ("openai", "openai_compat"):
         url = (base_url or "https://api.openai.com/v1") + "/chat/completions"
         return _call_openai_compat_with_usage(url, model_id, api_key, prompt, temperature, images=imgs, extra_body=extra_body)
@@ -1340,6 +1361,80 @@ def _call_openai_compat_with_usage(
     if last_err:
         raise last_err
     raise RuntimeError("OpenAI 兼容接口调用失败")
+
+
+def _call_anthropic_with_usage(
+    model_id: str,
+    api_key: str,
+    prompt: str,
+    *,
+    images: list[dict] | None = None,
+) -> tuple[str, dict]:
+    import base64 as b64mod
+    import requests as req
+    import time
+
+    content: list[dict[str, Any]] = []
+    for img in images or []:
+        mime = img.get("mime") or "image/jpeg"
+        b64 = b64mod.standard_b64encode(img["bytes"]).decode("ascii")
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": mime,
+                "data": b64,
+            },
+        })
+    content.append({"type": "text", "text": prompt})
+
+    body = {
+        "model": model_id,
+        "max_tokens": 4096,
+        "messages": [{"role": "user", "content": content}],
+    }
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            r = req.post("https://api.anthropic.com/v1/messages", json=body, headers=headers, timeout=(60, 240))
+            r.raise_for_status()
+            payload = r.json()
+            text_parts = []
+            for item in payload.get("content") or []:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    text_parts.append(item.get("text") or "")
+            usage = payload.get("usage") or {}
+            if isinstance(usage, dict):
+                usage.setdefault("prompt_tokens", usage.get("input_tokens", 0))
+                usage.setdefault("completion_tokens", usage.get("output_tokens", 0))
+                usage.setdefault("total_tokens", (usage.get("input_tokens") or 0) + (usage.get("output_tokens") or 0))
+                usage.setdefault("provider_usage_source", "anthropic_messages_usage")
+            return "\n".join(text_parts).strip(), usage if isinstance(usage, dict) else {}
+        except req.HTTPError as e:
+            last_err = _http_error_detail(e)
+            code = e.response.status_code if e.response is not None else 0
+            if code in (429, 502, 503, 504) and attempt < 2:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+            raise last_err from e
+        except (req.Timeout, req.ConnectionError, req.exceptions.ChunkedEncodingError) as e:
+            last_err = e
+            time.sleep(1.5 * (attempt + 1))
+        except req.RequestException as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(1.5 * (attempt + 1))
+                continue
+            raise
+    if last_err:
+        raise last_err
+    raise RuntimeError("Anthropic 接口调用失败")
 
 
 # ═══════════════════════════════════════════════════════
