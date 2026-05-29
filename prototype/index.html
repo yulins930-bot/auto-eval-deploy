@@ -1357,6 +1357,7 @@ function syncPrimaryGtOptions() {
 }
 
 async function submitSupplementClarify() {
+  if (window.__supplementClarifyInFlight) return;
   if (!window.__job || !window.__job.job_id) { alert('请先完成第 1 步澄清'); return; }
   const answers = {};
   let hasQaAnswer = false;
@@ -1374,6 +1375,7 @@ async function submitSupplementClarify() {
   const st = document.getElementById('supplement-clarify-status');
   const modelKey = (document.getElementById('clarify-model-key') || {}).value || 'gemini-3.5-flash';
   const apiKey = (document.getElementById('api-key') || {}).value || '';
+  window.__supplementClarifyInFlight = true;
   if (btn) { btn.disabled = true; btn.textContent = 'AI 重新理解中…'; }
   if (st) st.textContent = '';
   try {
@@ -1400,6 +1402,7 @@ async function submitSupplementClarify() {
     if (st) st.textContent = '';
     alert('补充澄清失败：' + (e.message || e));
   } finally {
+    window.__supplementClarifyInFlight = false;
     if (btn) { btn.disabled = false; btn.textContent = '提交补充，AI 重新理解'; }
   }
 }
@@ -2615,6 +2618,7 @@ function toggleExpand(header) {
 }
 
 async function startClarify() {
+  if (window.__clarifyInFlight) return;
   if (!window.__job || !window.__job.job_id) { alert('请先上传数据'); return; }
   if (getSensitiveStatus() === 'unmasked') {
     alert('当前选择为“有，未脱敏”。未脱敏数据不能进入第 2 步 LLM 理解需求，请先脱敏或改用测试样本。');
@@ -2623,7 +2627,7 @@ async function startClarify() {
   const desc = (document.getElementById('dataset-desc') || {}).value || '';
   const outputExpect = (document.getElementById('user-output-expect') || {}).value || '';
   if (!outputExpect.trim()) { alert('请填写「你希望 AI 每行输出什么」'); return; }
-  await loadModelsCatalog();
+  window.__clarifyInFlight = true;
   const modelKey = (document.getElementById('clarify-model-key') || {}).value;
   const apiKey = (document.getElementById('api-key') || {}).value || '';
   const clarifyBody = Object.assign({
@@ -2633,12 +2637,14 @@ async function startClarify() {
     sensitive_status: getSensitiveStatus()
   }, buildClarifyModelPayload());
   if (clarifyBody.model_key === '__custom__' && !clarifyBody.custom_model_id) {
+    window.__clarifyInFlight = false;
     alert('请填写自定义模型 ID'); return;
   }
   window.__jobClarifyModelKey = clarifyBody.model_key;
   const btn = document.getElementById('btn-next-1');
   if (btn) { btn.disabled = true; btn.textContent = 'LLM 理解中…'; }
   try {
+    await loadModelsCatalog();
     const res = await fetch('/api/clarify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2651,13 +2657,16 @@ async function startClarify() {
   } catch (e) {
     alert('澄清失败：' + (e.message || e));
   } finally {
+    window.__clarifyInFlight = false;
     if (btn) { btn.disabled = false; btn.textContent = '下一步：LLM 理解需求 →'; }
   }
 }
 
 
 async function confirmAndPrepare() {
+  if (window.__prepareInFlight) return;
   if (!window.__job) return;
+  window.__prepareInFlight = true;
   const fm = collectFieldMappingFromUi();
   window.__fieldMapping = fm;
   const prompt = (document.getElementById('prompt-template') || {}).value || '';
@@ -2758,6 +2767,8 @@ async function confirmAndPrepare() {
     if (vs) vs.style.display = 'none';
   } catch (e) {
     alert('准备数据失败：' + (e.message || e));
+  } finally {
+    window.__prepareInFlight = false;
   }
 }
 
