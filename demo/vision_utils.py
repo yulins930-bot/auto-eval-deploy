@@ -285,6 +285,14 @@ def assess_job_vision(
     sample_rows: Optional[List[List[str]]] = None,
 ) -> Dict[str, Any]:
     primary = (field_mapping or {}).get("primary_content") or ""
+    explicit = (field_mapping or {}).get("primary_content_mode") or ""
+    if explicit in ("text", "image_url", "excel_embedded"):
+        return {
+            "vision_required": explicit in ("image_url", "excel_embedded"),
+            "primary_content_mode": explicit,
+            "embedded_image_columns": list(embedded_image_columns or []),
+            "primary_content": primary,
+        }
     mode = "text"
     required = False
     if primary:
