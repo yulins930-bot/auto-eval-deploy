@@ -2549,8 +2549,16 @@ function renderSampleGate(gate, consensus, failures) {
   const failList = Object.keys(failures || {}).map(function(k){ return failures[k]; }).filter(function(x){ return x && x.count; });
   if (failList.length) {
     html += '<p style="margin-top:10px;"><strong>失败分组</strong></p><ul class="mini-list">'
-      + failList.map(function(f){ return '<li>' + esc(f.label) + '：' + esc(f.count) + ' 条</li>'; }).join('')
+      + failList.map(function(f){
+        var ex = (f.examples || []).slice(0, 3).map(function(e) {
+          return '第' + esc(e.row) + '行 · ' + esc(e.model) + '：' + esc((e.reason || e.response || '').substring(0, 200));
+        }).join('<br>');
+        return '<li><strong>' + esc(f.label) + '：' + esc(f.count) + ' 条</strong>'
+          + (ex ? ('<div style="margin:4px 0 0 12px;font-size:12px;color:#636e72;">' + ex + '</div>') : '')
+          + '</li>';
+      }).join('')
       + '</ul>';
+    html += '<p style="margin-top:8px;font-size:12px;color:#636e72;">完整错误见下方「AI 输出预览」失败行，或导出 CSV 的「失败原因」列。</p>';
   }
   body.innerHTML = html;
 }

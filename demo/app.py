@@ -409,6 +409,8 @@ def _build_failure_buckets(model_results: list[dict], gt_cols: list[str]) -> dic
     for mr in model_results:
         name = mr.get("model_name") or mr.get("name") or "模型"
         for row in mr.get("responses") or []:
+            if not isinstance(row, dict):
+                continue
             if row.get("status") != "ok":
                 add("api_failure", name, row, row.get("response") or "接口调用失败")
                 continue
@@ -1842,7 +1844,7 @@ def _http_error_detail(err: Exception) -> Exception:
         msg = (err.response.text or "")[:300]
     hint = ""
     if code == 401:
-        hint = "（请检查火山方舟 API Key 是否有效、是否已开通该模型；Lite 等型号需在控制台创建推理接入点）"
+        hint = "（请检查该厂商 API Key 是否有效、是否已开通对应模型；Anthropic 需 sk-ant- 开头密钥）"
     elif code == 403:
         hint = "（账号可能未开通该模型或欠费）"
     detail = (msg or err.response.reason or "HTTP error").strip()
@@ -3500,6 +3502,8 @@ def get_results(run_id):
             best_accuracy = acc
             best_model = mr["model_name"]
         for r in mr["responses"][:50]:
+            if not isinstance(r, dict):
+                continue
             pred = r.get("predicted")
             pred_s = "" if pred is None else str(pred)[:80]
             gt = r.get("ground_truth")
