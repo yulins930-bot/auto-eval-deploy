@@ -2345,7 +2345,20 @@ def index():
 @app.route("/api/health")
 def health():
     has_key = bool(os.environ.get("GEMINI_API_KEY"))
-    return jsonify({"ok": True, "has_env_key": has_key, "flow": "upload→clarify→prepare→sample→batch"})
+    pillow_ok = False
+    try:
+        from openpyxl.drawing.image import PILImage
+
+        pillow_ok = bool(PILImage)
+    except Exception:
+        pillow_ok = False
+    return jsonify({
+        "ok": True,
+        "has_env_key": has_key,
+        "pillow_ok": pillow_ok,
+        "excel_embedded_supported": pillow_ok,
+        "flow": "upload→clarify→prepare→sample→batch",
+    })
 
 
 @app.route("/api/models")
@@ -3248,6 +3261,13 @@ def upload():
             f"检测到 Excel 内嵌图片列：{'、'.join(embedded_cols)}。"
             "跑批时将把图片送入多模态模型，请选用支持看图的模型（如 Gemini / GPT-4o）。"
         )
+    elif file_kind == "csv":
+        low_cols = [str(c).lower() for c in columns]
+        if any("image" in c or "图" in c for c in low_cols):
+            vision_hint = (
+                "当前为 CSV：无法携带 Excel 单元格内嵌图。"
+                "若主输入是切图，请改上传 .xlsx（如 sample_governed.xlsx）。"
+            )
 
     return jsonify({
         "job_id": job_id,
