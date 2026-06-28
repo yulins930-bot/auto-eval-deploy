@@ -730,6 +730,11 @@ MODELS = {
         "name": "豆包 Seed Pro", "base_url": "https://ark.cn-beijing.volces.com/api/v3",
         "supports_vision": True, "supports_thinking": True, "thinking_default": "disabled",
     },
+    "doubao-seed-2-1-pro": {
+        "vendor": "doubao", "provider": "openai_compat", "model_id": "doubao-seed-2-1-pro-260628",
+        "name": "豆包 Seed 2.1 Pro", "base_url": "https://ark.cn-beijing.volces.com/api/v3",
+        "supports_vision": True, "supports_thinking": True, "thinking_default": "disabled",
+    },
     "doubao-seed-lite": {
         "vendor": "doubao", "provider": "openai_compat", "model_id": "doubao-seed-2-0-lite-260215",
         "name": "豆包 Seed Lite", "base_url": "https://ark.cn-beijing.volces.com/api/v3",
@@ -818,6 +823,7 @@ MODEL_PRICE_USD_PER_1M_TOKENS = {
     "gpt-5.5": {"input": 5.00, "output": 30.00},
     "gpt-5.2": {"input": 1.75, "output": 14.00},
     "doubao-seed-2-0-pro-260215": {"input": 0.47, "output": 2.37},
+    "doubao-seed-2-1-pro-260628": {"input": 0.83, "output": 4.17},
     "doubao-seed-2-0-lite-260215": {"input": 0.09, "output": 0.53},
     "doubao-seed-2-0-mini-260215": {"input": 0.03, "output": 0.31},
     "doubao-seed-1-6-flash-250715": {"input": 0.022, "output": 0.219},
