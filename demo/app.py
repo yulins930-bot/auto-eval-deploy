@@ -1328,6 +1328,7 @@ def _call_openai_compat_with_usage(
     import requests as req
     import time
 
+    timeout = _openai_compat_timeout(model_id)
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     if images:
         import base64 as b64mod
@@ -1354,10 +1355,10 @@ def _call_openai_compat_with_usage(
     last_err: Exception | None = None
     for attempt in range(3):
         try:
-            r = req.post(url, json=body, headers=headers, timeout=(60, 240))
+            r = req.post(url, json=body, headers=headers, timeout=timeout)
             if r.status_code == 400 and "temperature" in (r.text or "").lower() and "temperature" in body:
                 body_retry = {k: v for k, v in body.items() if k != "temperature"}
-                r = req.post(url, json=body_retry, headers=headers, timeout=(60, 240))
+                r = req.post(url, json=body_retry, headers=headers, timeout=timeout)
             r.raise_for_status()
             payload = r.json()
             usage = payload.get("usage") or {}
@@ -1371,7 +1372,14 @@ def _call_openai_compat_with_usage(
                 time.sleep(2.0 * (attempt + 1))
                 continue
             raise last_err from e
-        except (req.Timeout, req.ConnectionError, req.exceptions.ChunkedEncodingError) as e:
+        except req.Timeout as e:
+            last_err = RuntimeError(
+                f"{model_id} 请求超时（read timeout={timeout[1]}s）。"
+                "Seed 2.1 Pro 看图/深度推理可能单条较慢，建议先把并发降到 1-2，"
+                "或减少样本量后重试。"
+            )
+            time.sleep(1.5 * (attempt + 1))
+        except (req.ConnectionError, req.exceptions.ChunkedEncodingError) as e:
             last_err = e
             time.sleep(1.5 * (attempt + 1))
         except req.RequestException as e:
@@ -1384,6 +1392,13 @@ def _call_openai_compat_with_usage(
     if last_err:
         raise last_err
     raise RuntimeError("OpenAI 兼容接口调用失败")
+
+
+def _openai_compat_timeout(model_id: str) -> tuple[int, int]:
+    """Return (connect_timeout, read_timeout) for OpenAI-compatible vendors."""
+    if (model_id or "").strip() == "doubao-seed-2-1-pro-260628":
+        return (60, 600)
+    return (60, 240)
 
 
 def _call_anthropic_with_usage(
